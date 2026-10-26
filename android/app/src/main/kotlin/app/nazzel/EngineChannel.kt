@@ -27,6 +27,7 @@ class EngineChannel(
     private val worker = Executors.newCachedThreadPool()
     private val main = Handler(Looper.getMainLooper())
     private val channel = MethodChannel(messenger, "app.nazzel/engine")
+    private var pendingPick: MethodChannel.Result? = null
 
     init {
         if (attachEvents) Events.sink = { id -> main.post { channel.invokeMethod("changed", id) } }
@@ -35,6 +36,22 @@ class EngineChannel(
 
     fun push(method: String, arg: Any?) {
         main.post { channel.invokeMethod(method, arg) }
+    }
+
+    fun onActivityResult(code: Int, resultCode: Int, data: Intent?) {
+        if (code != PICK_FOLDER) return
+        val pending = pendingPick ?: return
+        pendingPick = null
+        val uri = data?.data
+        if (resultCode != Activity.RESULT_OK || uri == null) {
+            pending.success(null)
+            return
+        }
+        ctx.contentResolver.takePersistableUriPermission(
+            uri, Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+        )
+        MediaSaver.setTree(ctx, uri)
+        pending.success(MediaSaver.label(ctx))
     }
 
     fun dispose() {
@@ -133,6 +150,32 @@ class EngineChannel(
                 Events.changed(id)
                 true
             }
+            "deleteMany" -> background(result) {
+                call.argument<List<String>>("ids")!!.forEach { id ->
+                    val row = store.get(id)
+                    if (row != null && row.optString("status") == "done") {
+                        row.optString("path").takeIf { it.isNotEmpty() && it != "null" }?.let { MediaSaver.delete(ctx, it) }
+                    }
+                    store.delete(id)
+                }
+                Events.changed("many")
+                true
+            }
+            "saveLocation" -> result.success(MediaSaver.label(ctx))
+            "pickFolder" -> {
+                pendingPick?.success(null)
+                pendingPick = result
+                activity.startActivityForResult(
+                    Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).addFlags(
+                        Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION or
+                            Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION
+                    ), PICK_FOLDER
+                )
+            }
+            "resetSaveLocation" -> {
+                MediaSaver.setTree(ctx, null)
+                result.success(MediaSaver.label(ctx))
+            }
             "open" -> result.success(viewOrShare(call.argument<String>("id")!!, share = false))
             "share" -> result.success(viewOrShare(call.argument<String>("id")!!, share = true))
             "sharedUrl" -> result.success(sharedUrl)
@@ -221,5 +264,9 @@ class EngineChannel(
         } catch (e: ActivityNotFoundException) {
             false
         }
+    }
+
+    private companion object {
+        const val PICK_FOLDER = 41
     }
 }

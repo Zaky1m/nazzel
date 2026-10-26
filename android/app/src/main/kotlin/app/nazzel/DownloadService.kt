@@ -38,7 +38,13 @@ class DownloadService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_CANCEL) {
-            cancels[intent.getStringExtra(EXTRA_ID)]?.set(true)
+            val id = intent.getStringExtra(EXTRA_ID)
+            if (id != null && cancels[id] != null) {
+                cancels[id]?.set(true)
+                // The engine may sit in a network call for a while before it sees the flag; the row reads canceled right away.
+                store.finish(id, "canceled")
+                Events.changed(id)
+            }
             return START_NOT_STICKY
         }
         startForeground(NOTIF_ID, progressNotification("نزّل", 0, true), ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
@@ -88,6 +94,7 @@ class DownloadService : Service() {
         try {
             manager.notify(NOTIF_ID, progressNotification(row.title, 0, true, row.id))
             val res = PyBridge.download(this, row.url, row.optionId, outDir.path, DownloadProgress { percent, speed ->
+                if (percent < 0) return@DownloadProgress flag.get()
                 val now = System.currentTimeMillis()
                 if (now - lastPush >= 600) {
                     lastPush = now

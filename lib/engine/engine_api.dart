@@ -85,6 +85,12 @@ class EngineApi {
   Future<void> cancel(String id) => _channel.invokeMethod('cancel', {'id': id});
   Future<void> retry(String id) => _channel.invokeMethod('retry', {'id': id});
   Future<void> delete(String id) => _channel.invokeMethod('delete', {'id': id});
+  Future<void> deleteMany(List<String> ids) => _channel.invokeMethod('deleteMany', {'ids': ids});
+  Future<String> saveLocation() async => await _channel.invokeMethod<String>('saveLocation') ?? '';
+
+  /// Opens the system folder picker; returns the new location label, or null when the user backs out.
+  Future<String?> pickFolder() => _channel.invokeMethod<String>('pickFolder');
+  Future<String> resetSaveLocation() async => await _channel.invokeMethod<String>('resetSaveLocation') ?? '';
   Future<bool> open(String id) async => await _channel.invokeMethod<bool>('open', {'id': id}) ?? false;
   Future<bool> share(String id) async => await _channel.invokeMethod<bool>('share', {'id': id}) ?? false;
   Future<String?> exportLog({required bool share}) => _channel.invokeMethod<String>('exportLog', {'share': share});

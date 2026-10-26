@@ -15,7 +15,7 @@ import traceback
 import urllib.request
 
 # Bumped whenever engine.py changes; signed engine updates only apply when newer than this.
-ENGINE_VERSION = "1.1.0"
+ENGINE_VERSION = "1.2.0"
 
 _RELEASES = "https://github.com/yt-dlp/yt-dlp/releases"
 _API_LATEST = "https://api.github.com/repos/yt-dlp/yt-dlp/releases/latest"
@@ -96,8 +96,12 @@ class _Collect:
     def __init__(self):
         self.lines = []
         self._t0 = time.time()
+        self.check = None
 
     def add(self, level, msg):
+        # yt-dlp logs at every network step, so this is where a cancel gets noticed before any byte is downloaded.
+        if self.check and self.check():
+            raise _Cancelled()
         if len(self.lines) >= self.MAX_LINES:
             if len(self.lines) == self.MAX_LINES:
                 self.lines.append("... output truncated")
@@ -416,6 +420,8 @@ def _is_youtube(url):
 def download(url, option_id, out_dir, progress_cb, lg):
     """progress_cb(percent: float, speed: float|None) -> bool. Returning True cancels."""
     yt_dlp = _ytdlp()
+    report = getattr(progress_cb, "onProgress", progress_cb)
+    lg.check = lambda: report(-1.0, 0.0)
     title_override = None
     if _is_spotify(url):
         title_override, url = _spotify_query(url, lg)

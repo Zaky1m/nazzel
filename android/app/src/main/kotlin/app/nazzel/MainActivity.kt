@@ -41,6 +41,12 @@ class MainActivity : FlutterActivity() {
         SharedLink.extract(text)?.let { engineChannel?.push("clipboardUrl", it) }
     }
 
+    @Deprecated("Deprecated in Java")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: android.content.Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        engineChannel?.onActivityResult(requestCode, resultCode, data)
+    }
+
     override fun onDestroy() {
         engineChannel?.dispose()
         super.onDestroy()

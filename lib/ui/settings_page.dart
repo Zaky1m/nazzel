@@ -7,6 +7,7 @@ import '../core/theme.dart';
 import '../engine/engine_api.dart';
 import 'quality.dart';
 import 'widgets/common.dart';
+import 'widgets/update_footer.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key, required this.active});
@@ -25,8 +26,7 @@ class _SettingsPageState extends State<SettingsPage> {
   int _logCount = 0;
   Map<String, dynamic> _stats = const {};
   String _version = '';
-  Map<String, dynamic>? _update;
-  bool _checking = false;
+  String _location = '';
 
   static const _choices = ['best', '720', '480', '360'];
 
@@ -47,8 +47,8 @@ class _SettingsPageState extends State<SettingsPage> {
     _api.appInfo().then((i) {
       if (mounted) setState(() => _version = i['version'] as String? ?? '');
     });
-    _api.updateInfo().then((u) {
-      if (mounted) setState(() => _update = u);
+    _api.saveLocation().then((l) {
+      if (mounted) setState(() => _location = l);
     });
     _api.getPref('ask_quality').then((v) {
       if (mounted && v == '0') setState(() => _ask = false);
@@ -63,26 +63,16 @@ class _SettingsPageState extends State<SettingsPage> {
     if (mounted) setState(() => _stats = st);
   }
 
-  Future<void> _checkUpdate() async {
-    setState(() => _checking = true);
-    try {
-      final u = await _api.updateInfo(refresh: true);
-      if (mounted) setState(() => _update = u);
-      if (mounted && u == null) _toast(S.upToDate);
-    } catch (_) {
-      if (mounted) _toast(S.updateFailed);
-    } finally {
-      if (mounted) setState(() => _checking = false);
-    }
+  Future<void> _pickLocation() async {
+    final label = await _api.pickFolder();
+    if (label == null || !mounted) return;
+    setState(() => _location = label);
+    _toast(S.locationChanged);
   }
 
-  Future<void> _install() async {
-    try {
-      final status = await _api.installUpdate();
-      if (mounted && status == 'permission') _toast(S.allowInstall);
-    } catch (_) {
-      if (mounted) _toast(S.updateFailed);
-    }
+  Future<void> _resetLocation() async {
+    final label = await _api.resetSaveLocation();
+    if (mounted) setState(() => _location = label);
   }
 
   Widget _statsCard(NzPalette p) {
@@ -95,80 +85,6 @@ class _SettingsPageState extends State<SettingsPage> {
         children: [
           _row(p, S.statsLifetime, '$lifetime', divider: true),
           _row(p, S.statsSaved, bytes.isEmpty ? '$saved' : '$saved · $bytes'),
-        ],
-      ),
-    );
-  }
-
-  Widget _updatesCard(NzPalette p) {
-    final update = _update;
-    return SurfaceCard(
-      padding: const EdgeInsets.all(14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  S.updatesTitle,
-                  style: TextStyle(fontWeight: FontWeight.w600, color: p.text),
-                ),
-              ),
-              if (_version.isNotEmpty) Text(S.versionLabel(_version), style: TextStyle(color: p.mute, fontSize: 12)),
-            ],
-          ),
-          const SizedBox(height: 6),
-          if (update == null)
-            Text(S.upToDate, style: TextStyle(color: p.mute, fontSize: 12.5))
-          else ...[
-            Text(
-              S.newVersion('${update['version']}'),
-              style: TextStyle(color: p.accent, fontWeight: FontWeight.w600),
-            ),
-            if ((update['notes'] as String? ?? '').isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 4),
-                child: Text(update['notes'] as String, style: TextStyle(color: p.mute, fontSize: 12.5)),
-              ),
-          ],
-          const SizedBox(height: 12),
-          ValueListenableBuilder<int?>(
-            valueListenable: _api.updateProgress,
-            builder: (_, pct, _) {
-              if (pct != null) {
-                return ClipRRect(
-                  borderRadius: BorderRadius.circular(3),
-                  child: LinearProgressIndicator(
-                    value: pct / 100,
-                    minHeight: 6,
-                    color: p.accent,
-                    backgroundColor: p.raise,
-                  ),
-                );
-              }
-              return Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  if (update != null)
-                    SoftButton(
-                      label: [
-                        S.updateNow,
-                        if (formatBytes(update['size'] as num?).isNotEmpty) formatBytes(update['size'] as num?),
-                      ].join(' · '),
-                      icon: Icons.system_update_rounded,
-                      onTap: _install,
-                    ),
-                  SoftButton(
-                    label: S.checkUpdates,
-                    icon: Icons.refresh_rounded,
-                    onTap: _checking ? () {} : _checkUpdate,
-                  ),
-                ],
-              );
-            },
-          ),
         ],
       ),
     );
@@ -210,9 +126,23 @@ class _SettingsPageState extends State<SettingsPage> {
 
   String _label(String c) => c == 'best' ? S.bestQuality : '$c${smallCaps('p')}';
 
+  Widget _section(NzPalette p, String title) => Padding(
+    padding: const EdgeInsets.fromLTRB(6, 18, 6, 8),
+    child: Text(
+      title,
+      style: TextStyle(color: p.mute, fontSize: 12.5, fontWeight: FontWeight.w600),
+    ),
+  );
+
+  Widget _title(NzPalette p, String text) => Text(
+    text,
+    style: TextStyle(fontWeight: FontWeight.w600, color: p.text),
+  );
+
   @override
   Widget build(BuildContext context) {
     final p = context.nz;
+    final custom = _location.isNotEmpty && _location != 'Movies/Nazzel';
     return SafeArea(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -220,84 +150,109 @@ class _SettingsPageState extends State<SettingsPage> {
           const PageHeader(title: S.settings),
           Expanded(
             child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
               children: [
+                _section(p, S.sectionDownloads),
                 SurfaceCard(
-                  padding: const EdgeInsets.all(14),
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Text(
-                        S.defaultQuality,
-                        style: TextStyle(fontWeight: FontWeight.w600, color: p.text),
-                      ),
-                      const SizedBox(height: 10),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: [
-                          for (final c in _choices)
-                            QualityChip(
-                              label: _label(c),
-                              selected: _quality == c,
-                              onTap: () {
-                                setState(() => _quality = c);
-                                _api.setPref('default_quality', c);
-                              },
-                            ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 12),
-                SurfaceCard(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                  child: Row(
-                    children: [
-                      Expanded(
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              S.askQuality,
-                              style: TextStyle(fontWeight: FontWeight.w600, color: p.text),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              _ask ? S.askQualityOn : S.askQualityOff,
-                              style: TextStyle(color: p.mute, fontSize: 12),
+                            _title(p, S.defaultQuality),
+                            const SizedBox(height: 10),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: [
+                                for (final c in _choices)
+                                  QualityChip(
+                                    label: _label(c),
+                                    selected: _quality == c,
+                                    onTap: () {
+                                      setState(() => _quality = c);
+                                      _api.setPref('default_quality', c);
+                                    },
+                                  ),
+                              ],
                             ),
                           ],
                         ),
                       ),
-                      Switch(
-                        value: _ask,
-                        activeThumbColor: p.onAccent,
-                        activeTrackColor: p.accent,
-                        onChanged: (v) {
-                          setState(() => _ask = v);
-                          _api.setPref('ask_quality', v ? '1' : '0');
-                        },
+                      Divider(height: 1, color: p.line),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _title(p, S.askQuality),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    _ask ? S.askQualityOn : S.askQualityOff,
+                                    style: TextStyle(color: p.mute, fontSize: 12),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Switch(
+                              value: _ask,
+                              activeThumbColor: p.onAccent,
+                              activeTrackColor: p.accent,
+                              onChanged: (v) {
+                                setState(() => _ask = v);
+                                _api.setPref('ask_quality', v ? '1' : '0');
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                      Divider(height: 1, color: p.line),
+                      InkWell(
+                        onTap: _pickLocation,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    _title(p, S.saveLocation),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      _location.isEmpty ? '…' : _location,
+                                      textDirection: TextDirection.ltr,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(color: p.mute, fontSize: 12),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              if (custom)
+                                TextButton(
+                                  onPressed: _resetLocation,
+                                  child: Text(S.resetLocation, style: TextStyle(color: p.accent, fontSize: 12.5)),
+                                )
+                              else
+                                Icon(Icons.folder_open_rounded, color: p.mute, size: 20),
+                            ],
+                          ),
+                        ),
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(height: 12),
-                SurfaceCard(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-                  child: Column(
-                    children: [
-                      _row(p, S.saveLocation, 'Movies/Nazzel', divider: true),
-                      _row(p, S.tempCleanup, S.tempCleanupValue),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 12),
+                _section(p, S.sectionStats),
                 _statsCard(p),
-                const SizedBox(height: 12),
-                _updatesCard(p),
-                const SizedBox(height: 12),
+                _section(p, S.sectionSupport),
                 SurfaceCard(
                   padding: const EdgeInsets.all(14),
                   child: Column(
@@ -305,12 +260,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     children: [
                       Row(
                         children: [
-                          Expanded(
-                            child: Text(
-                              S.logTitle,
-                              style: TextStyle(fontWeight: FontWeight.w600, color: p.text),
-                            ),
-                          ),
+                          Expanded(child: _title(p, S.logTitle)),
                           Text(
                             _logCount == 0 ? S.logEmpty : '$_logCount',
                             style: TextStyle(color: p.mute, fontSize: 12),
@@ -335,6 +285,7 @@ class _SettingsPageState extends State<SettingsPage> {
               ],
             ),
           ),
+          UpdateFooter(version: _version, onMessage: _toast),
         ],
       ),
     );

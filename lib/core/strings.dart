@@ -28,6 +28,12 @@ class S {
   static const defaultQuality = 'الجودة الافتراضية';
   static const bestQuality = 'الأعلى';
   static const saveLocation = 'مكان الحفظ';
+  static const saveLocationHint = 'اضغط لاختيار مجلد تاني';
+  static const resetLocation = 'رجّع الافتراضي';
+  static const locationChanged = 'مكان الحفظ اتغيّر';
+  static const sectionDownloads = 'التحميل';
+  static const sectionStats = 'الإحصائيات';
+  static const sectionSupport = 'الدعم';
   static const tempCleanup = 'مسح المؤقت بعد';
   static const tempCleanupValue = '24 ساعة';
   static const askQuality = 'اسأل عن الجودة عند المشاركة';
@@ -48,6 +54,10 @@ class S {
   static const selectAll = 'تحديد الكل';
   static const selectNone = 'إلغاء التحديد';
   static const cancelAll = 'إلغاء الكل';
+  static const deleteAll = 'حذف الكل';
+  static const deleteAllTitle = 'حذف الكل';
+  static String deleteAllBody(int n, bool files) =>
+      files ? 'هيتشال $n من القايمة، والفيديوهات اللي خلصت هتتشال من مكانها كمان.' : 'هيتشال $n من القايمة.';
   static String items(int n) => '$n مقطع';
   static String selected(int n, int total) => 'محدد $n من $total';
   static String downloadSelected(int n) => 'نزّل المحدد ($n)';
@@ -62,6 +72,11 @@ class S {
   static String newVersion(String v) => 'نسخة جديدة $v متاحة';
   static const updateNow = 'تحديث';
   static const checkUpdates = 'فحص التحديثات';
+  static const checkingUpdates = 'بفحص التحديثات...';
+  static String downloadingUpdate(String v) => 'نسخة جديدة $v، بحمّلها...';
+  static String updateProgress(String v, int pct) => 'تحميل النسخة $v · $pct%';
+  static const updateReady = 'تم';
+  static const updateAvailableShort = 'نسخة جديدة متاحة';
   static const allowInstall = 'اسمح لنزّل بتثبيت التطبيقات وارجع اضغط تحديث تاني';
   static const updateFailed = 'ماقدرتش أحمّل التحديث';
   static const updateBanner = 'فيه نسخة جديدة من نزّل';

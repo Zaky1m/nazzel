@@ -4,6 +4,22 @@ All notable changes are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [1.2.0] - 2026-10-27
+
+### Added
+
+- Choose the folder where downloads are saved
+- Delete all finished, failed or canceled downloads at once, and per playlist
+- Update button in the Settings footer with progress, replacing the updates card
+
+### Changed
+
+- Settings are grouped into sections, and the version number sits at the bottom
+
+### Fixed
+
+- Canceling a download that had not reported progress yet did nothing until it started
+
 ## [1.1.0] - 2026-10-26
 
 ### Added

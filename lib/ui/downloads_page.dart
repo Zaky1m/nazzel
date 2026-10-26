@@ -62,6 +62,24 @@ class _DownloadsPageState extends State<DownloadsPage> {
     await _api.delete(item.id);
   }
 
+  Future<void> _deleteMany(List<DownloadItem> list) async {
+    final victims = list.where((i) => !i.isRunning).toList();
+    if (victims.isEmpty) return;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: const Text(S.deleteAllTitle),
+        content: Text(S.deleteAllBody(victims.length, victims.any((i) => i.isDone))),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text(S.keep)),
+          TextButton(onPressed: () => Navigator.pop(c, true), child: const Text(S.delete)),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    await _api.deleteMany([for (final i in victims) i.id]);
+  }
+
   Future<void> _copy(String text) async {
     await Clipboard.setData(ClipboardData(text: text));
     if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text(S.copied)));
@@ -90,6 +108,9 @@ class _DownloadsPageState extends State<DownloadsPage> {
                   _tabChip(p, i, label),
                   const SizedBox(width: 6),
                 ],
+                const Spacer(),
+                if (items.any((i) => !i.isRunning))
+                  SoftButton(label: S.deleteAll, icon: Icons.delete_sweep_outlined, onTap: () => _deleteMany(items)),
               ],
             ),
           ),
@@ -162,11 +183,9 @@ class _DownloadsPageState extends State<DownloadsPage> {
                 ),
               ),
               if (active)
-                SoftButton(
-                  label: S.cancelAll,
-                  icon: Icons.close_rounded,
-                  onTap: () => _api.cancelBatch(entry.batchId!),
-                ),
+                SoftButton(label: S.cancelAll, icon: Icons.close_rounded, onTap: () => _api.cancelBatch(entry.batchId!))
+              else
+                SoftButton(label: S.deleteAll, icon: Icons.delete_sweep_outlined, onTap: () => _deleteMany(all)),
             ],
           ),
         ),
