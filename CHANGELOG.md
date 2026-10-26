@@ -4,13 +4,19 @@ All notable changes are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [1.2.1] - 2026-10-27
+
+### Changed
+
+- The app no longer installs updates itself. Settings only reports when a newer version exists, and the install permission is gone
+
 ## [1.2.0] - 2026-10-27
 
 ### Added
 
 - Choose the folder where downloads are saved
 - Delete all finished, failed or canceled downloads at once, and per playlist
-- Update button in the Settings footer with progress, replacing the updates card
+- Update check button in the Settings footer, replacing the updates card
 
 ### Changed
 

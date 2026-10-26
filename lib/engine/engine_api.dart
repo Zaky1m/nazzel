@@ -12,7 +12,6 @@ class EngineApi {
     _channel.setMethodCallHandler((call) async {
       if (call.method == 'changed') changes.value++;
       if (call.method == 'clipboardUrl') _clipboard.add(call.arguments as String);
-      if (call.method == 'updateProgress') updateProgress.value = call.arguments as int;
     });
   }
 
@@ -24,9 +23,6 @@ class EngineApi {
 
   /// Links found in a fresh clipboard when the app gains focus.
   Stream<String> get onClipboardUrl => _clipboard.stream;
-
-  /// Percent of the app update download, or null when none is running.
-  final ValueNotifier<int?> updateProgress = ValueNotifier<int?>(null);
 
   /// Bumped whenever native code reports a change to any download row.
   final ValueNotifier<int> changes = ValueNotifier<int>(0);
@@ -65,16 +61,6 @@ class EngineApi {
   Future<Map<String, dynamic>?> updateInfo({bool refresh = false}) async {
     final raw = await _channel.invokeMethod<String>('updateInfo', {'refresh': refresh});
     return raw == null ? null : jsonDecode(raw) as Map<String, dynamic>;
-  }
-
-  /// Returns "started", "permission" (user must allow installs first) or "none".
-  Future<String> installUpdate() async {
-    updateProgress.value = 0;
-    try {
-      return await _channel.invokeMethod<String>('installUpdate') ?? 'none';
-    } finally {
-      updateProgress.value = null;
-    }
   }
 
   Future<List<DownloadItem>> list() async {

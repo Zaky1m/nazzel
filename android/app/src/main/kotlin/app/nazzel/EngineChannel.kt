@@ -119,11 +119,6 @@ class EngineChannel(
                 val json = if (call.argument<Boolean>("refresh") == true) AppUpdater.check(ctx) else AppUpdater.available(ctx)
                 json?.toString()
             }
-            "installUpdate" -> background(result) {
-                val manifest = AppUpdater.available(ctx) ?: return@background "none"
-                val file = AppUpdater.download(ctx, manifest) { pct -> main.post { channel.invokeMethod("updateProgress", pct) } }
-                AppUpdater.install(activity, file)
-            }
             "list" -> background(result) { store.list().toString() }
             "cancel" -> background(result) {
                 val id = call.argument<String>("id")!!

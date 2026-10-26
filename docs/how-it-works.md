@@ -35,13 +35,14 @@ Nazzel has three layers that run inside the app:
 
 ## Staying up to date
 
-Sites change often, so three things update separately:
+Sites change often, so two things update on their own and the app only reports new versions:
 
 | What | Size | Source | Check |
 |---|---|---|---|
 | yt-dlp | About 3 MB | yt-dlp's GitHub releases | Published SHA-256 |
 | `engine.py` | Tens of KB | This repository's latest release | Ed25519 signature and SHA-256 |
-| The app | About 45 MB | This repository's latest release | SHA-256, then Android's signature check |
+
+The app itself is never installed by Nazzel; Settings shows when a newer release exists.
 
 A signed engine update is used only if it does not need a newer app; a broken
 one falls back to the copy inside the APK.

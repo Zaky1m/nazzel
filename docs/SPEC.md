@@ -103,16 +103,14 @@ process died is marked as failed and can be retried.
   matches, and it does not require a newer app build. Anything else falls back
   to the bundled copy
 - App. Once a day the app reads `update.json` from the latest release. A
-  newer build shows a banner on the home screen and an update button in
-  Settings. The APK is checked against its SHA-256 and installed through
-  Android's package installer after the user confirms. Android refuses any APK
-  not signed with the same key
+  newer build is reported in Settings, next to the version number. The app does
+  not download or install it; the install permission is not requested
 
 ## Settings
 
-Default quality, ask for quality when sharing, save location (read only),
+Default quality, ask for quality when sharing, save location (any folder, chosen with the system picker),
 temporary file lifetime (read only), statistics (downloads so far, files kept
-and their size), updates, and the download log.
+and their size), the update check, and the download log.
 
 ## Interface
 

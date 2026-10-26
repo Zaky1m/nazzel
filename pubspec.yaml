@@ -1,7 +1,7 @@
 name: nazzel
 description: "Nazzel, a video downloader for Android that runs yt-dlp on the phone."
 publish_to: 'none'
-version: 1.2.0+3
+version: 1.2.1+4
 
 environment:
   sdk: ^3.12.2

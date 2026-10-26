@@ -22,7 +22,7 @@ The interface is in Arabic.
 - Downloads playlists, albums and posts with several videos; you pick the items and follow each one
 - Saves Spotify tracks, albums and playlists as audio by finding them on YouTube
 - Keeps downloading in the background with a progress notification, and saves to the gallery under `Movies/Nazzel` and `Music/Nazzel`
-- Updates its downloader on its own and offers new app versions from inside the app
+- Updates its downloader on its own and tells you in Settings when a new app version exists
 - Keeps a log of the last 100 downloads that you can save or share when something fails
 
 [Read how it works](docs/how-it-works.md)

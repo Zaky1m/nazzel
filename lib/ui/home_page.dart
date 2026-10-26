@@ -32,7 +32,6 @@ class _HomePageState extends State<HomePage> {
   Set<int> _picked = {};
   bool _loading = false;
   String? _error;
-  String? _update;
   int _token = 0;
 
   @override
@@ -40,9 +39,6 @@ class _HomePageState extends State<HomePage> {
     super.initState();
     _controller.addListener(() => setState(() {}));
     _clipSub = _api.onClipboardUrl.listen(_onClipboard);
-    _api.updateInfo().then((u) {
-      if (mounted && u != null) setState(() => _update = u['version'] as String?);
-    });
   }
 
   @override
@@ -153,7 +149,6 @@ class _HomePageState extends State<HomePage> {
             child: ListView(
               padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
               children: [
-                if (_update != null) ...[_updateBanner(p), const SizedBox(height: 12)],
                 _field(p),
                 const SizedBox(height: 14),
                 if (_loading) _loadingBox(p),
@@ -166,34 +161,6 @@ class _HomePageState extends State<HomePage> {
       ),
     );
   }
-
-  Widget _updateBanner(NzPalette p) => Material(
-    color: p.raise,
-    borderRadius: BorderRadius.circular(14),
-    child: InkWell(
-      borderRadius: BorderRadius.circular(14),
-      onTap: widget.onOpenSettings,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        child: Row(
-          children: [
-            Icon(Icons.system_update_rounded, color: p.accent, size: 20),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                S.updateBanner,
-                style: TextStyle(color: p.text, fontWeight: FontWeight.w500),
-              ),
-            ),
-            Text(
-              S.updateNow,
-              style: TextStyle(color: p.accent, fontWeight: FontWeight.w600),
-            ),
-          ],
-        ),
-      ),
-    ),
-  );
 
   // The field takes the full width; one trailing icon pastes when empty and clears when filled.
   Widget _field(NzPalette p) {

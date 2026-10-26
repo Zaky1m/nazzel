@@ -70,16 +70,10 @@ class S {
   static String versionLabel(String v) => 'الإصدار $v';
   static const upToDate = 'عندك آخر نسخة';
   static String newVersion(String v) => 'نسخة جديدة $v متاحة';
-  static const updateNow = 'تحديث';
   static const checkUpdates = 'فحص التحديثات';
   static const checkingUpdates = 'بفحص التحديثات...';
-  static String downloadingUpdate(String v) => 'نسخة جديدة $v، بحمّلها...';
-  static String updateProgress(String v, int pct) => 'تحميل النسخة $v · $pct%';
-  static const updateReady = 'تم';
   static const updateAvailableShort = 'نسخة جديدة متاحة';
-  static const allowInstall = 'اسمح لنزّل بتثبيت التطبيقات وارجع اضغط تحديث تاني';
-  static const updateFailed = 'ماقدرتش أحمّل التحديث';
-  static const updateBanner = 'فيه نسخة جديدة من نزّل';
+  static const updateFailed = 'ماقدرتش أفحص التحديثات';
   static const noLinkFound = 'مفيش رابط في النص ده';
   static const openFailed = 'ماقدرتش أفتح الملف';
 
