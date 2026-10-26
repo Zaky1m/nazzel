@@ -1,0 +1,31 @@
+const _map = {
+  'a': 'ᴀ',
+  'b': 'ʙ',
+  'c': 'ᴄ',
+  'd': 'ᴅ',
+  'e': 'ᴇ',
+  'f': 'ꜰ',
+  'g': 'ɢ',
+  'h': 'ʜ',
+  'i': 'ɪ',
+  'j': 'ᴊ',
+  'k': 'ᴋ',
+  'l': 'ʟ',
+  'm': 'ᴍ',
+  'n': 'ɴ',
+  'o': 'ᴏ',
+  'p': 'ᴘ',
+  'q': 'ǫ',
+  'r': 'ʀ',
+  's': 'ѕ',
+  't': 'ᴛ',
+  'u': 'ᴜ',
+  'v': 'ᴠ',
+  'w': 'ᴡ',
+  'x': 'x',
+  'y': 'ʏ',
+  'z': 'ᴢ',
+};
+
+/// Renders fixed English UI text in small caps. Names, links and numbers must not go through this.
+String smallCaps(String text) => text.split('').map((c) => _map[c.toLowerCase()] ?? c).join();

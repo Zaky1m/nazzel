@@ -1,0 +1,42 @@
+name: nazzel
+description: "Nazzel, a video downloader for Android that runs yt-dlp on the phone."
+publish_to: 'none'
+version: 1.1.0+2
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.4
+
+flutter:
+  uses-material-design: true
+  fonts:
+    - family: IBMPlexSansArabic
+      fonts:
+        - asset: assets/fonts/IBMPlexSansArabic-Regular.ttf
+        - asset: assets/fonts/IBMPlexSansArabic-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/IBMPlexSansArabic-SemiBold.ttf
+          weight: 600
+    - family: ReadexPro
+      fonts:
+        - asset: assets/fonts/ReadexPro.ttf
+
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: assets/icon/icon-1024.png
+  adaptive_icon_background: "#1F5BFF"
+  adaptive_icon_foreground: assets/icon/icon-fg.png
+  adaptive_icon_monochrome: assets/icon/icon-mono.png
+  min_sdk_android: 29
