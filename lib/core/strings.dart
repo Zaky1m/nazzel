@@ -66,14 +66,8 @@ class S {
   static const statsTitle = 'الإحصائيات';
   static const statsLifetime = 'حمّلت لحد دلوقتي';
   static const statsSaved = 'محفوظ في المعرض';
-  static const updatesTitle = 'التحديثات';
   static String versionLabel(String v) => 'الإصدار $v';
-  static const upToDate = 'عندك آخر نسخة';
   static String newVersion(String v) => 'نسخة جديدة $v متاحة';
-  static const checkUpdates = 'فحص التحديثات';
-  static const checkingUpdates = 'بفحص التحديثات...';
-  static const updateAvailableShort = 'نسخة جديدة متاحة';
-  static const updateFailed = 'ماقدرتش أفحص التحديثات';
   static const noLinkFound = 'مفيش رابط في النص ده';
   static const openFailed = 'ماقدرتش أفتح الملف';
 

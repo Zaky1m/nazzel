@@ -157,6 +157,16 @@ class _HomePageState extends State<HomePage> {
               ],
             ),
           ),
+          // A long playlist scrolls under the button, so the button stays in reach.
+          if (_info?.isPlaylist == true)
+            Container(
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
+              decoration: BoxDecoration(
+                color: p.bg,
+                border: Border(top: BorderSide(color: p.line)),
+              ),
+              child: _downloadButton(p, S.downloadSelected(_picked.length)),
+            ),
         ],
       ),
     );
@@ -385,7 +395,5 @@ class _HomePageState extends State<HomePage> {
     _chips(info),
     const SizedBox(height: 10),
     PlaylistPicker(items: info.items, selected: _picked, onChanged: (s) => setState(() => _picked = s)),
-    const SizedBox(height: 14),
-    _downloadButton(p, S.downloadSelected(_picked.length)),
   ];
 }

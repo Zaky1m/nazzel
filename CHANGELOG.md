@@ -4,6 +4,14 @@ All notable changes are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [1.2.2] - 2026-10-27
+
+### Changed
+
+- The download button of a playlist stays pinned at the bottom of the screen
+- The update check button is gone; the version number sits at the end of Settings
+- One delete-all button instead of one per playlist
+
 ## [1.2.1] - 2026-10-27
 
 ### Changed

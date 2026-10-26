@@ -183,9 +183,11 @@ class _DownloadsPageState extends State<DownloadsPage> {
                 ),
               ),
               if (active)
-                SoftButton(label: S.cancelAll, icon: Icons.close_rounded, onTap: () => _api.cancelBatch(entry.batchId!))
-              else
-                SoftButton(label: S.deleteAll, icon: Icons.delete_sweep_outlined, onTap: () => _deleteMany(all)),
+                SoftButton(
+                  label: S.cancelAll,
+                  icon: Icons.close_rounded,
+                  onTap: () => _api.cancelBatch(entry.batchId!),
+                ),
             ],
           ),
         ),

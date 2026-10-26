@@ -7,7 +7,6 @@ import '../core/theme.dart';
 import '../engine/engine_api.dart';
 import 'quality.dart';
 import 'widgets/common.dart';
-import 'widgets/update_footer.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key, required this.active});
@@ -27,6 +26,7 @@ class _SettingsPageState extends State<SettingsPage> {
   Map<String, dynamic> _stats = const {};
   String _version = '';
   String _location = '';
+  String? _newVersion;
 
   static const _choices = ['best', '720', '480', '360'];
 
@@ -46,6 +46,9 @@ class _SettingsPageState extends State<SettingsPage> {
     _refreshStats();
     _api.appInfo().then((i) {
       if (mounted) setState(() => _version = i['version'] as String? ?? '');
+    });
+    _api.updateInfo().then((u) {
+      if (mounted) setState(() => _newVersion = u?['version'] as String?);
     });
     _api.saveLocation().then((l) {
       if (mounted) setState(() => _location = l);
@@ -282,14 +285,30 @@ class _SettingsPageState extends State<SettingsPage> {
                     ],
                   ),
                 ),
+                _versionLine(p),
               ],
             ),
           ),
-          UpdateFooter(version: _version, onMessage: _toast),
         ],
       ),
     );
   }
+
+  Widget _versionLine(NzPalette p) => Padding(
+    padding: const EdgeInsets.fromLTRB(0, 28, 0, 8),
+    child: Column(
+      children: [
+        if (_version.isNotEmpty) Text(S.versionLabel(_version), style: TextStyle(color: p.mute, fontSize: 12)),
+        if (_newVersion != null) ...[
+          const SizedBox(height: 2),
+          Text(
+            S.newVersion(_newVersion!),
+            style: TextStyle(color: p.accent, fontSize: 12, fontWeight: FontWeight.w600),
+          ),
+        ],
+      ],
+    ),
+  );
 
   Widget _row(NzPalette p, String label, String value, {bool divider = false}) => Container(
     padding: const EdgeInsets.symmetric(vertical: 12),
