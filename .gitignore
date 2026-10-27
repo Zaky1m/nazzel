@@ -18,3 +18,6 @@ __pycache__/
 *.local.sh
 CLAUDE.local.md
 docs/superpowers/
+
+# Video projects made beside the app are not part of it
+previews/
