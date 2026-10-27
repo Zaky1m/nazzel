@@ -88,9 +88,6 @@ class DownloadService : Service() {
         cancels[row.id] = flag
         val outDir = File(cacheDir, "dl/${row.id}")
         var lastPush = 0L
-        val runId = store.logStart(row.id, "download", row.url, row.optionId)
-        val log = { text: String -> store.logLines(runId, listOf(text)) }
-        log("start id=${row.id} title='${row.title}' free=${cacheDir.usableSpace / 1048576}MB")
         try {
             manager.notify(NOTIF_ID, progressNotification(row.title, 0, true, row.id))
             val res = PyBridge.download(this, row.url, row.optionId, outDir.path, DownloadProgress { percent, speed ->
@@ -103,36 +100,30 @@ class DownloadService : Service() {
                     manager.notify(NOTIF_ID, progressNotification(row.title, percent.toInt(), false, row.id))
                 }
                 flag.get()
-            }, log)
-            val engineLog = res.optJSONArray("log")
-            store.logLines(runId, List(engineLog?.length() ?: 0) { "py ${engineLog!!.getString(it)}" })
-            log("engine returned ok=${res.optBoolean("ok")} code=${res.optString("code")} message=${res.optString("message")}")
+            })
             when {
                 flag.get() || res.optString("code") == "canceled" ->
                     store.finish(row.id, if (timedOut.get()) "failed" else "canceled", error = if (timedOut.get()) "timeout" else null)
                 !res.optBoolean("ok") -> store.finish(
-                    row.id, "failed", error = res.optString("code", "unknown"), detail = res.optString("message")
+                    row.id, "failed", error = res.optString("code", "unknown"), detail = scrub(res.optString("message"))
                 )
-                else -> finalize(row, res, outDir, log)
+                else -> finalize(row, res, outDir)
             }
         } catch (e: Throwable) {
             Log.e(TAG, "download ${row.id} failed", e)
-            log("exception: ${describe(e)}")
             store.finish(
                 row.id, "failed", error = if (e is java.io.IOException) "save" else "unknown",
-                detail = describe(e)
+                detail = scrub(describe(e))
             )
         } finally {
             cancels.remove(row.id)
             outDir.deleteRecursively()
-            store.logEnd(runId, store.get(row.id)?.optString("status") ?: "unknown")
             Events.changed(row.id)
         }
     }
 
-    private fun finalize(row: Row, res: JSONObject, outDir: File, log: (String) -> Unit) {
+    private fun finalize(row: Row, res: JSONObject, outDir: File) {
         val files = res.getJSONArray("files").let { a -> List(a.length()) { File(a.getString(it)) } }
-        log("files: " + files.joinToString { "${it.name}=${it.length()}B ts=${Muxer.isMpegTs(it)}" })
         val audioOnly = res.optBoolean("audio_only")
         val needsMux = files.size >= 2 || Muxer.isMpegTs(files[0])
         val source = if (needsMux) {
@@ -140,11 +131,9 @@ class DownloadService : Service() {
             val t0 = System.currentTimeMillis()
             try {
                 Muxer.mux(files, merged)
-                log("muxed ${files.joinToString { it.name }} in ${System.currentTimeMillis() - t0}ms -> ${merged.length()}B")
             } catch (e: Throwable) {
                 Log.e(TAG, "merge ${row.id} failed", e)
-                log("merge failed: ${describe(e)}")
-                store.finish(row.id, "failed", error = "merge", detail = describe(e))
+                store.finish(row.id, "failed", error = "merge", detail = scrub(describe(e)))
                 return
             }
             merged
@@ -152,9 +141,7 @@ class DownloadService : Service() {
         val ext = source.extension.lowercase()
         val mime = mimeFor(ext).let { if (audioOnly && it.startsWith("video/")) it.replace("video/", "audio/") else it }
         val name = safeName(res.optString("title").ifBlank { row.title }) + "." + ext
-        log("saving as '$name' mime=$mime")
         val uri = MediaSaver.save(this, source, name, mime)
-        log("saved uri=$uri")
         store.finish(row.id, "done", path = uri.toString(), mime = mime, title = res.optString("title"))
         store.setSize(row.id, source.length())
         val stats = getSharedPreferences("app", Context.MODE_PRIVATE)
@@ -195,7 +182,11 @@ class DownloadService : Service() {
     )
 
     private fun describe(e: Throwable): String =
-        (listOf(e.toString()) + e.stackTrace.take(4).map { "  at $it" }).joinToString("\n").take(900)
+        (listOf(e.toString()) + e.stackTrace.take(4).map { "  at $it" }).joinToString("\n")
+
+    // Failure details stay on the phone, but links and file paths in them are removed anyway.
+    private fun scrub(text: String): String =
+        text.replace(Regex("https?://\\S+"), "<link>").replace(Regex("/(?:data|storage|sdcard)/\\S+"), "<path>").take(300)
 
     private fun mimeFor(ext: String) = when (ext) {
         "mp4", "m4v" -> "video/mp4"

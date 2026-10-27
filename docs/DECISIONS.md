@@ -65,13 +65,37 @@ keep rules easy to get wrong.
 are in the download logic and take kilobytes instead of a full APK. Signing
 means a compromised download path cannot run code in the app.
 
-## Spotify through YouTube search
+## No Spotify
 
-**Decision.** Read names from Spotify's public embed page and download from
-YouTube. **Why.** Spotify audio is protected; this needs no account, key or
-third-party service.
+**Decision.** Spotify links are refused. **Why.** Spotify audio is protected, the
+only route was to find the same song on YouTube, and Google Play does not allow
+YouTube downloads. 1.1 and 1.2 had it; 1.3 removed it.
 
 ## No song recognition
 
 Recognition needs a fingerprint database of millions of songs, which only
 online services have. A local-only feature is not possible, so it was left out.
+
+## No logs, no in-app installs
+
+Context: version 1.1 kept the output of the last 100 downloads and let the user
+save or share it, and 1.2 briefly installed updates itself.
+
+Decision: remove both. The app writes no logs, stores no engine output, and
+never installs an APK. Failures show a short note with links removed.
+
+Why: a log file in `Download/Nazzel` can be read by other apps and contains
+links the user opened, and installing updates needs the permission Play treats
+as risky. Neither is worth it for an app that handles private browsing habits.
+
+## A separate store build
+
+Context: Google Play forbids fetching executable code from outside Play, and
+rejects downloaders of YouTube.
+
+Decision: `NAZZEL_STORE=1` builds a bundle that loads no downloaded code, makes
+no update checks and refuses YouTube links. The GitHub build is
+unchanged.
+
+Why: one code base, two policies, and the switch is a build flag that cannot be
+flipped by the user.

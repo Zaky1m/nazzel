@@ -30,7 +30,7 @@ class EngineApi {
   Future<VideoInfo> info(String url) async {
     final raw = await _channel.invokeMethod<String>('info', {'url': url});
     final json = jsonDecode(raw!) as Map<String, dynamic>;
-    if (json['ok'] != true) throw EngineFailure(json['code'] as String? ?? 'unknown');
+    if (json['ok'] != true) throw EngineFailure(json['code'] as String? ?? 'unknown', json['message'] as String? ?? '');
     return VideoInfo.fromJson(url, json);
   }
 
@@ -72,6 +72,7 @@ class EngineApi {
   Future<void> retry(String id) => _channel.invokeMethod('retry', {'id': id});
   Future<void> delete(String id) => _channel.invokeMethod('delete', {'id': id});
   Future<void> deleteMany(List<String> ids) => _channel.invokeMethod('deleteMany', {'ids': ids});
+  Future<bool> openLink(String url) async => await _channel.invokeMethod<bool>('openLink', {'url': url}) ?? false;
   Future<String> saveLocation() async => await _channel.invokeMethod<String>('saveLocation') ?? '';
 
   /// Opens the system folder picker; returns the new location label, or null when the user backs out.
@@ -79,9 +80,6 @@ class EngineApi {
   Future<String> resetSaveLocation() async => await _channel.invokeMethod<String>('resetSaveLocation') ?? '';
   Future<bool> open(String id) async => await _channel.invokeMethod<bool>('open', {'id': id}) ?? false;
   Future<bool> share(String id) async => await _channel.invokeMethod<bool>('share', {'id': id}) ?? false;
-  Future<String?> exportLog({required bool share}) => _channel.invokeMethod<String>('exportLog', {'share': share});
-  Future<void> clearLog() => _channel.invokeMethod('clearLog');
-  Future<int> logCount() async => await _channel.invokeMethod<int>('logCount') ?? 0;
   Future<void> closeShare() => _channel.invokeMethod('closeShare');
   Future<String?> sharedUrl() => _channel.invokeMethod<String>('sharedUrl');
   Future<String?> getPref(String key) => _channel.invokeMethod<String>('getPref', {'key': key});

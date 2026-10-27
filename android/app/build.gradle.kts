@@ -11,9 +11,14 @@ val keyProps = Properties().apply {
     if (f.exists()) f.inputStream().use { load(it) }
 }
 
+// Set NAZZEL_STORE=1 for the Google Play build: no outside code or updates, and no sites Play does not allow.
+val storeBuild = System.getenv("NAZZEL_STORE") == "1"
+
 android {
     namespace = "app.nazzel"
     compileSdk = flutter.compileSdkVersion
+
+    buildFeatures { buildConfig = true }
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -27,6 +32,7 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        buildConfigField("boolean", "STORE", storeBuild.toString())
         ndk { abiFilters += listOf("arm64-v8a") }
     }
 

@@ -4,6 +4,32 @@ All notable changes are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [1.3.0] - 2026-10-28
+
+### Added
+
+- A build for Google Play (`NAZZEL_STORE=1`) that loads no downloaded code, never checks for updates and refuses YouTube links
+- Privacy policy and a Play publishing guide
+- A note in Settings about privacy and download rights
+- A Telegram channel button at the bottom right of Home and Downloads. It opens into a short invitation for five seconds when the app starts, then stays as an icon
+- A refresh icon beside the version number in Settings that only reports whether a newer version exists
+
+### Changed
+
+- Downloads are saved to `Download/Nazzel` by default, video and audio alike
+- Links from unsupported sites fail at once with a clear message instead of a general error
+- A failed preview shows a short note from the engine under the message
+- App data is excluded from cloud backup and device transfer
+
+### Removed
+
+- Spotify links. The app no longer looks songs up on YouTube
+- The diagnostics log and its save, share and clear buttons. The first start deletes the log files older versions wrote to `Download/Nazzel`
+
+### Fixed
+
+- A link that was just downloaded is no longer filled in again from the clipboard
+
 ## [1.2.2] - 2026-10-27
 
 ### Changed

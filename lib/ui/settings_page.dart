@@ -22,11 +22,12 @@ class _SettingsPageState extends State<SettingsPage> {
   final _api = EngineApi.instance;
   String _quality = 'best';
   bool _ask = true;
-  int _logCount = 0;
   Map<String, dynamic> _stats = const {};
   String _version = '';
   String _location = '';
   String? _newVersion;
+  bool _store = false;
+  bool _checking = false;
 
   static const _choices = ['best', '720', '480', '360'];
 
@@ -34,7 +35,6 @@ class _SettingsPageState extends State<SettingsPage> {
   void didUpdateWidget(SettingsPage old) {
     super.didUpdateWidget(old);
     if (widget.active && !old.active) {
-      _refreshLog();
       _refreshStats();
     }
   }
@@ -42,10 +42,14 @@ class _SettingsPageState extends State<SettingsPage> {
   @override
   void initState() {
     super.initState();
-    _refreshLog();
     _refreshStats();
     _api.appInfo().then((i) {
-      if (mounted) setState(() => _version = i['version'] as String? ?? '');
+      if (mounted) {
+        setState(() {
+          _version = i['version'] as String? ?? '';
+          _store = i['store'] == true;
+        });
+      }
     });
     _api.updateInfo().then((u) {
       if (mounted) setState(() => _newVersion = u?['version'] as String?);
@@ -93,39 +97,27 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  Future<void> _refreshLog() async {
-    final n = await _api.logCount();
-    if (mounted) setState(() => _logCount = n);
-  }
-
-  void _toast(String text) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
-
-  Future<void> _export(bool share) async {
+  Future<void> _checkVersion() async {
+    if (_checking) return;
+    setState(() => _checking = true);
     try {
-      final path = await _api.exportLog(share: share);
-      if (mounted && path != null) _toast(path);
+      // The spin lasts a moment even when the answer is instant, so the tap is seen.
+      final results = await Future.wait([
+        _api.updateInfo(refresh: true),
+        Future<void>.delayed(const Duration(milliseconds: 700)),
+      ]);
+      final u = results.first as Map<String, dynamic>?;
+      if (!mounted) return;
+      setState(() => _newVersion = u?['version'] as String?);
+      _toast(u == null ? S.upToDate : S.newVersion('${u['version']}'));
     } catch (_) {
-      if (mounted) _toast(S.logFailed);
+      if (mounted) _toast(S.checkFailed);
+    } finally {
+      if (mounted) setState(() => _checking = false);
     }
   }
 
-  Future<void> _clear() async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (c) => AlertDialog(
-        title: const Text(S.logClear),
-        content: const Text(S.logHint),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text(S.keep)),
-          TextButton(onPressed: () => Navigator.pop(c, true), child: const Text(S.logClear)),
-        ],
-      ),
-    );
-    if (ok != true) return;
-    await _api.clearLog();
-    await _refreshLog();
-    if (mounted) _toast(S.logCleared);
-  }
+  void _toast(String text) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
 
   String _label(String c) => c == 'best' ? S.bestQuality : '$c${smallCaps('p')}';
 
@@ -145,7 +137,7 @@ class _SettingsPageState extends State<SettingsPage> {
   @override
   Widget build(BuildContext context) {
     final p = context.nz;
-    final custom = _location.isNotEmpty && _location != 'Movies/Nazzel';
+    final custom = _location.isNotEmpty && _location != 'Download/Nazzel';
     return SafeArea(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -255,33 +247,15 @@ class _SettingsPageState extends State<SettingsPage> {
                 ),
                 _section(p, S.sectionStats),
                 _statsCard(p),
-                _section(p, S.sectionSupport),
+                _section(p, S.sectionAbout),
                 SurfaceCard(
                   padding: const EdgeInsets.all(14),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        children: [
-                          Expanded(child: _title(p, S.logTitle)),
-                          Text(
-                            _logCount == 0 ? S.logEmpty : '$_logCount',
-                            style: TextStyle(color: p.mute, fontSize: 12),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      Text(S.logHint, style: TextStyle(color: p.mute, fontSize: 12)),
-                      const SizedBox(height: 12),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: [
-                          SoftButton(label: S.logSave, icon: Icons.save_alt_rounded, onTap: () => _export(false)),
-                          SoftButton(label: S.logShare, icon: Icons.share_outlined, onTap: () => _export(true)),
-                          SoftButton(label: S.logClear, icon: Icons.delete_sweep_outlined, onTap: _clear),
-                        ],
-                      ),
+                      Text(S.aboutPrivacy, style: TextStyle(color: p.text, fontSize: 13, height: 1.5)),
+                      const SizedBox(height: 8),
+                      Text(S.aboutRights, style: TextStyle(color: p.mute, fontSize: 12.5, height: 1.5)),
                     ],
                   ),
                 ),
@@ -295,17 +269,33 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Widget _versionLine(NzPalette p) => Padding(
-    padding: const EdgeInsets.fromLTRB(0, 28, 0, 8),
+    padding: const EdgeInsets.fromLTRB(0, 24, 0, 8),
     child: Column(
       children: [
-        if (_version.isNotEmpty) Text(S.versionLabel(_version), style: TextStyle(color: p.mute, fontSize: 12)),
-        if (_newVersion != null) ...[
-          const SizedBox(height: 2),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (_version.isNotEmpty) Text(S.versionLabel(_version), style: TextStyle(color: p.mute, fontSize: 12)),
+            if (!_store)
+              Semantics(
+                button: true,
+                label: S.checkUpdates,
+                child: InkResponse(
+                  onTap: _checkVersion,
+                  radius: 20,
+                  child: Padding(
+                    padding: const EdgeInsets.all(8),
+                    child: _SpinIcon(spinning: _checking, color: p.mute),
+                  ),
+                ),
+              ),
+          ],
+        ),
+        if (_newVersion != null)
           Text(
             S.newVersion(_newVersion!),
             style: TextStyle(color: p.accent, fontSize: 12, fontWeight: FontWeight.w600),
           ),
-        ],
       ],
     ),
   );
@@ -333,5 +323,41 @@ class _SettingsPageState extends State<SettingsPage> {
         ),
       ],
     ),
+  );
+}
+
+class _SpinIcon extends StatefulWidget {
+  const _SpinIcon({required this.spinning, required this.color});
+  final bool spinning;
+  final Color color;
+
+  @override
+  State<_SpinIcon> createState() => _SpinIconState();
+}
+
+class _SpinIconState extends State<_SpinIcon> with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 800));
+
+  @override
+  void didUpdateWidget(_SpinIcon old) {
+    super.didUpdateWidget(old);
+    if (widget.spinning && !_c.isAnimating) {
+      _c.repeat();
+    } else if (!widget.spinning) {
+      _c.stop();
+      _c.value = 0;
+    }
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => RotationTransition(
+    turns: _c,
+    child: Icon(Icons.refresh_rounded, size: 18, color: widget.color),
   );
 }

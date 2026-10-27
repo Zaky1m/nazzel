@@ -16,8 +16,11 @@ class MainActivity : FlutterActivity() {
         Executors.newSingleThreadExecutor().execute {
             store.purgeExpired().forEach { File(cacheDir, "dl/$it").deleteRecursively() }
             if (store.hasQueued()) DownloadService.start(this)
-            PyBridge.maybeUpdate(this)
-            AppUpdater.maybeCheck(this)
+            MediaSaver.purgeOldLogs(this)
+            if (!BuildConfig.STORE) {
+                PyBridge.maybeUpdate(this)
+                AppUpdater.maybeCheck(this)
+            }
         }
     }
 

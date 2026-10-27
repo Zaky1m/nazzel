@@ -17,6 +17,8 @@ String qualityLabel(QualityOption o) {
   if (o.isAudio) return S.audioOnly;
   if (o.id == 'best') return S.bestQuality;
   if (o.quality > 0) return '${o.quality}${smallCaps('p')}';
+  final tier = RegExp(r'^tier(\d)$').firstMatch(o.label);
+  if (tier != null) return S.tier(int.parse(tier.group(1)!));
   return smallCaps(o.label);
 }
 

@@ -15,13 +15,18 @@ import traceback
 import urllib.request
 
 # Bumped whenever engine.py changes; signed engine updates only apply when newer than this.
-ENGINE_VERSION = "1.2.0"
+ENGINE_VERSION = "1.3.0"
 
 _RELEASES = "https://github.com/yt-dlp/yt-dlp/releases"
 _API_LATEST = "https://api.github.com/repos/yt-dlp/yt-dlp/releases/latest"
 _TIMEOUT = 25
 _data_dir = None
 _qjs_path = None
+_store = False
+# Never offered: Spotify audio is protected, and yt-dlp search pseudo-links are not something a person pastes.
+_BLOCKED = ("spotify.com", "spotify.link", "ytsearch")
+# The Google Play build also refuses YouTube.
+_STORE_BLOCKED = ("youtube.com", "youtu.be", "youtube-nocookie.com")
 
 
 class _Cancelled(Exception):
@@ -35,19 +40,29 @@ class EngineError(Exception):
         self.message = message
 
 
-def configure(data_dir, qjs_path=None):
-    """Puts a previously downloaded yt-dlp in front of the bundled one and records the QuickJS binary."""
-    global _data_dir, _qjs_path
+def configure(data_dir, qjs_path=None, store=False):
+    """Puts a previously downloaded yt-dlp in front of the bundled one and records the QuickJS binary.
+
+    The store build never loads downloaded code and refuses the sites in _STORE_BLOCKED.
+    """
+    global _data_dir, _qjs_path, _store
     _data_dir = data_dir
+    _store = bool(store)
     _qjs_path = qjs_path if qjs_path and os.access(qjs_path, os.X_OK) else None
     path = _updated_path()
-    if path and os.path.isfile(path) and path not in sys.path:
+    if not _store and path and os.path.isfile(path) and path not in sys.path:
         sys.path.insert(0, path)
     return json.dumps({"ok": True, "version": _version()})
 
 
 def _updated_path():
     return os.path.join(_data_dir, "ytdlp", "yt-dlp") if _data_dir else None
+
+
+def _check_allowed(url):
+    low = url.lower()
+    if any(h in low for h in _BLOCKED) or (_store and any(h in low for h in _STORE_BLOCKED)):
+        raise EngineError("unsupported", "site not available in this build")
 
 
 def _ytdlp():
@@ -61,12 +76,12 @@ def _version():
 
 def _classify(message):
     low = message.lower()
+    if "unsupported url" in low or "no suitable extractor" in low:
+        return "unsupported"
     if any(k in low for k in ("registered users", "log in", "login", "sign in", "private", "not available", "unavailable", "removed", "age-restricted", "confirm your age")):
         return "private"
     if any(k in low for k in ("not found", "http error 404", "does not exist", "deleted", "no longer available")):
         return "missing"
-    if "unsupported url" in low:
-        return "unsupported"
     if any(k in low for k in ("urlopen", "timed out", "temporary failure", "connection", "network", "name resolution")):
         return "network"
     if any(k in low for k in ("cannot parse", "unable to extract", "unable to download webpage", "no video formats")):
@@ -123,15 +138,12 @@ class _Collect:
 
 
 def _logged(always):
-    """Like _safe, but hands the function a collector and always returns what it collected on failure."""
+    """Like _safe, but hands the function a collector; its output is only used to notice a cancel and never leaves the process."""
     def deco(fn):
         def wrapper(*args):
             lg = _Collect()
             try:
-                out = fn(*args, lg=lg)
-                if always:
-                    out["log"] = lg.lines
-                return json.dumps(out, ensure_ascii=False)
+                return json.dumps(fn(*args, lg=lg), ensure_ascii=False)
             except _Cancelled:
                 out = {"ok": False, "code": "canceled", "message": "canceled"}
             except EngineError as e:
@@ -139,7 +151,6 @@ def _logged(always):
             except Exception as e:  # noqa: BLE001 - last resort so Kotlin always gets JSON
                 lg.add("traceback", traceback.format_exc())
                 out = {"ok": False, "code": _classify(str(e)), "message": f"{type(e).__name__}: {str(e)[:300]}"}
-            out["log"] = lg.lines
             return json.dumps(out, ensure_ascii=False)
         return wrapper
     return deco
@@ -167,6 +178,15 @@ def _is_audio(f):
 def _quality(f):
     # Vertical videos report the long side as height, so the short side is what viewers call "720p".
     h, w = f.get("height"), f.get("width")
+    if not h:
+        # Some sites only describe the size in text: "1280x720", "720p", or a format id such as "hls-720p".
+        text = " ".join(str(f.get(k) or "") for k in ("resolution", "format_note", "format_id"))
+        m = re.search(r"(\d{3,4})x(\d{3,4})", text)
+        if m:
+            h, w = int(m.group(2)), int(m.group(1))
+        else:
+            m = re.search(r"(?<!\d)(\d{3,4})p(?!\w)", text)
+            h = int(m.group(1)) if m else 0
     return min(h, w) if h and w else (h or 0)
 
 
@@ -205,9 +225,12 @@ def _choices(formats):
         a = mux_audio if v.get("acodec") == "none" else None
         choices.append({"id": f"q{q}", "kind": "video", "quality": q, "label": f"{q}p", "video": v, "audio": a})
     if not choices:
-        for f in sorted(pool, key=lambda f: f.get("tbr") or f.get("quality") or 0, reverse=True)[:3]:
+        # Some sites (Instagram) give no picture size, and their format ids are meaningless numbers, so the
+        # options are named by rank instead: tier1 is the best of them.
+        ranked = sorted(pool, key=lambda f: f.get("tbr") or f.get("quality") or 0, reverse=True)[:3]
+        for rank, f in enumerate(ranked, 1):
             choices.append({"id": f"f{f['format_id']}", "kind": "video", "quality": 0,
-                            "label": str(f["format_id"]).upper(), "video": f, "audio": None})
+                            "label": f"tier{rank}", "video": f, "audio": None})
     if best_audio:
         choices.append({"id": "audio", "kind": "audio", "quality": 0, "label": "audio", "video": None, "audio": best_audio})
     return choices
@@ -250,6 +273,8 @@ def _opts(extra=None, lg=None):
         "restrictfilenames": True,
         "nopart": False,
         "noprogress": True,
+        # Arbitrary web pages are not a supported source, so an unknown link fails at once with "unsupported".
+        "allowed_extractors": ["default", "-generic"],
     }
     if _qjs_path:
         # YouTube's signature and n-parameter challenges are solved by yt-dlp-ejs running inside QuickJS.
@@ -270,7 +295,7 @@ _PLAYLIST_OPTIONS = [
     {"id": "audio", "kind": "audio", "quality": 0, "label": "audio", "size": None},
 ]
 _ITEM_MARK = "#nazzel-item="
-_AUDIO_SITES = ("soundcloud", "bandcamp", "mixcloud", "audiomack", "spotify")
+_AUDIO_SITES = ("soundcloud", "bandcamp", "mixcloud", "audiomack")
 
 
 def _split_item(url):
@@ -309,8 +334,7 @@ def _playlist_payload(url, data, lg):
 
 @_logged(always=False)
 def info(url, lg):
-    if _is_spotify(url):
-        return _spotify_info(url, lg)
+    _check_allowed(url)
     base, item = _split_item(url)
     yt_dlp = _ytdlp()
     extra = {"skip_download": True, "extract_flat": "in_playlist"}
@@ -340,73 +364,6 @@ def info(url, lg):
     }
 
 
-# ---------- Spotify: tracks are DRM-protected, so names come from the public embed page and the
-# audio from the first YouTube search result for "artist - title".
-_SPOTIFY = re.compile(r"open\.spotify\.com/(?:intl-[a-z]+/)?(track|album|playlist)/([A-Za-z0-9]+)")
-_UA = "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0 Mobile Safari/537.36"
-
-
-def _is_spotify(url):
-    return "spotify.com/" in url or "spotify.link/" in url
-
-
-def _spotify_entity(url):
-    if "spotify.link/" in url:
-        req = urllib.request.Request(url, headers={"User-Agent": _UA})
-        with urllib.request.urlopen(req, timeout=_TIMEOUT) as r:
-            url = r.geturl()
-    m = _SPOTIFY.search(url)
-    if not m:
-        raise EngineError("unsupported", "unsupported Spotify link")
-    kind, sid = m.groups()
-    req = urllib.request.Request(f"https://open.spotify.com/embed/{kind}/{sid}", headers={"User-Agent": _UA})
-    with urllib.request.urlopen(req, timeout=_TIMEOUT) as r:
-        html = r.read().decode("utf-8", "replace")
-    found = re.search(r'<script id="__NEXT_DATA__" type="application/json">(.*?)</script>', html, re.S)
-    if not found:
-        raise EngineError("extractor", "Spotify page changed")
-    entity = json.loads(found.group(1))["props"]["pageProps"]["state"]["data"]["entity"]
-    return kind, sid, entity
-
-
-def _spotify_image(entity):
-    images = (entity.get("visualIdentity") or {}).get("image") or (entity.get("coverArt") or {}).get("sources") or []
-    return max(images, key=lambda i: i.get("maxWidth") or 0).get("url") if images else None
-
-
-def _spotify_info(url, lg):
-    kind, sid, entity = _spotify_entity(url)
-    lg.add("spotify", f"{kind} {sid} {entity.get('name')}")
-    audio_only = [{"id": "audio", "kind": "audio", "quality": 0, "label": "audio", "size": None}]
-    if kind == "track":
-        artists = ", ".join(a.get("name", "") for a in entity.get("artists") or [])
-        return {
-            "ok": True, "type": "single", "title": f"{artists} - {entity.get('name')}".strip(" -"),
-            "thumbnail": _spotify_image(entity), "duration": (entity.get("duration") or 0) / 1000 or None,
-            "uploader": artists, "site": "Spotify", "options": audio_only,
-        }
-    items = []
-    for t in (entity.get("trackList") or [])[:_MAX_ITEMS]:
-        tid = str(t.get("uri", "")).rsplit(":", 1)[-1]
-        if not tid:
-            continue
-        artists = str(t.get("subtitle") or "").replace("\xa0", " ")
-        items.append({"url": f"https://open.spotify.com/track/{tid}", "title": f"{artists} - {t.get('title')}".strip(" -"),
-                      "duration": (t.get("duration") or 0) / 1000 or None, "thumbnail": None})
-    return {"ok": True, "type": "playlist", "title": entity.get("name") or "", "site": "Spotify",
-            "thumbnail": _spotify_image(entity), "items": items, "options": audio_only}
-
-
-def _spotify_query(url, lg):
-    kind, sid, entity = _spotify_entity(url)
-    if kind != "track":
-        raise EngineError("unsupported", "open the album or playlist to pick its tracks")
-    artists = " ".join(a.get("name", "") for a in entity.get("artists") or [])
-    title = f"{artists} - {entity.get('name')}".strip(" -")
-    lg.add("spotify", f"searching YouTube for: {title}")
-    return title, f"ytsearch1:{artists} {entity.get('name')} audio"
-
-
 # YouTube serves some clients URLs that answer 403 without a proof-of-origin token or a JS runtime,
 # neither of which exists on a phone, so other clients are tried in turn when that happens.
 _YT_CLIENTS = ("android_vr", "tv", "ios", "mweb")
@@ -420,14 +377,11 @@ def _is_youtube(url):
 def download(url, option_id, out_dir, progress_cb, lg):
     """progress_cb(percent: float, speed: float|None) -> bool. Returning True cancels."""
     yt_dlp = _ytdlp()
+    _check_allowed(url)
     report = getattr(progress_cb, "onProgress", progress_cb)
     lg.check = lambda: report(-1.0, 0.0)
-    title_override = None
-    if _is_spotify(url):
-        title_override, url = _spotify_query(url, lg)
-        option_id = "audio"
     base, item = _split_item(url)
-    clients = (None,) + (_YT_CLIENTS if _is_youtube(base) or base.startswith("ytsearch") else ())
+    clients = (None,) + (_YT_CLIENTS if _is_youtube(base) else ())
     last = None
     for client in clients:
         extra = {"extractor_args": {"youtube": {"player_client": [client]}}} if client else {}
@@ -437,8 +391,6 @@ def download(url, option_id, out_dir, progress_cb, lg):
         try:
             with yt_dlp.YoutubeDL(_opts({"skip_download": True, **extra}, lg)) as probe:
                 data = _single(probe.extract_info(base, download=False))
-            if title_override:
-                data["title"] = title_override
             return _download_info(data, option_id, out_dir, progress_cb, lg, extra)
         except (_Cancelled, EngineError):
             raise
@@ -517,8 +469,8 @@ def _fetch(url):
 @_safe
 def update():
     """Downloads the latest yt-dlp zipapp, verifies its SHA-256, and activates it."""
-    if not _data_dir:
-        raise EngineError("unknown", "engine not configured")
+    if not _data_dir or _store:
+        raise EngineError("unknown", "engine updates are disabled")
     current = _version()
     latest = json.loads(_fetch(_API_LATEST))["tag_name"]
     if latest == current:

@@ -62,17 +62,7 @@ class EngineChannel(
     private fun handle(call: MethodCall, result: MethodChannel.Result) {
         when (call.method) {
             "info" -> background(result) {
-                val url = call.argument<String>("url")!!
-                val notes = mutableListOf<String>()
-                val res = PyBridge.info(ctx, url) { notes.add(it) }
-                if (!res.optBoolean("ok")) {
-                    val runId = store.logStart("info", "info", url, "")
-                    store.logLines(runId, notes + "engine returned code=${res.optString("code")} message=${res.optString("message")}" +
-                        List(res.optJSONArray("log")?.length() ?: 0) { "py ${res.optJSONArray("log")!!.getString(it)}" })
-                    store.logEnd(runId, "failed")
-                }
-                res.remove("log")
-                res.toString()
+                PyBridge.info(ctx, call.argument<String>("url")!!).toString()
             }
             "enqueue" -> background(result) {
                 val id = UUID.randomUUID().toString()
@@ -113,9 +103,11 @@ class EngineChannel(
             }
             "appInfo" -> background(result) {
                 val info = ctx.packageManager.getPackageInfo(ctx.packageName, 0)
-                org.json.JSONObject().put("version", info.versionName).put("build", info.longVersionCode).toString()
+                org.json.JSONObject().put("version", info.versionName).put("build", info.longVersionCode)
+                    .put("store", BuildConfig.STORE).toString()
             }
             "updateInfo" -> background(result) {
+                if (BuildConfig.STORE) return@background null
                 val json = if (call.argument<Boolean>("refresh") == true) AppUpdater.check(ctx) else AppUpdater.available(ctx)
                 json?.toString()
             }
@@ -156,6 +148,14 @@ class EngineChannel(
                 Events.changed("many")
                 true
             }
+            "openLink" -> {
+                // Only the project's own Telegram channel can be opened from the app.
+                val url = call.argument<String>("url").orEmpty()
+                val ok = Uri.parse(url).let { it.scheme == "https" && it.host == "t.me" }
+                result.success(ok && runCatching {
+                    activity.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                }.isSuccess)
+            }
             "saveLocation" -> result.success(MediaSaver.label(ctx))
             "pickFolder" -> {
                 pendingPick?.success(null)
@@ -174,26 +174,6 @@ class EngineChannel(
             "open" -> result.success(viewOrShare(call.argument<String>("id")!!, share = false))
             "share" -> result.success(viewOrShare(call.argument<String>("id")!!, share = true))
             "sharedUrl" -> result.success(sharedUrl)
-            "exportLog" -> background(result) {
-                val share = call.argument<Boolean>("share") == true
-                val stamp = java.text.SimpleDateFormat("yyyyMMdd-HHmmss", java.util.Locale.US).format(java.util.Date())
-                val name = "nazzel-log-$stamp.txt"
-                val uri = MediaSaver.saveText(ctx, store.logRender(logHeader()), name)
-                if (share) main.post {
-                    activity.startActivity(
-                        Intent.createChooser(
-                            Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_STREAM, uri)
-                                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION), null
-                        )
-                    )
-                }
-                "Download/Nazzel/$name"
-            }
-            "clearLog" -> background(result) {
-                store.logClear()
-                true
-            }
-            "logCount" -> background(result) { store.logCount() }
             "closeShare" -> {
                 activity.finish()
                 result.success(true)
@@ -222,19 +202,6 @@ class EngineChannel(
                 main.post { result.error("native", e.message, null) }
             }
         }
-    }
-
-    private fun logHeader(): String {
-        val info = ctx.packageManager.getPackageInfo(ctx.packageName, 0)
-        return listOf(
-            "Nazzel ${info.versionName} (${info.longVersionCode})",
-            "Android ${android.os.Build.VERSION.RELEASE} (API ${android.os.Build.VERSION.SDK_INT})",
-            "Device ${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL} abi=${android.os.Build.SUPPORTED_ABIS.firstOrNull()}",
-            "yt-dlp ${PyBridge.version(ctx)}",
-            PyBridge.engineNote(ctx),
-            "Free space ${ctx.cacheDir.usableSpace / 1048576} MB",
-            "Exported ${java.util.Date()}",
-        ).joinToString("\n")
     }
 
     private fun prefs() = ctx.getSharedPreferences("app", Context.MODE_PRIVATE)

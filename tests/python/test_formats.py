@@ -54,3 +54,21 @@ def test_error_messages_map_to_codes():
     assert engine._classify("ERROR: [dailymotion] x: Not found.") == "missing"
     assert engine._classify("ERROR: Unsupported URL: https://example.com") == "unsupported"
     assert engine._classify("Cannot parse data") == "extractor"
+
+
+def test_formats_without_a_picture_size_are_named_by_rank():
+    formats = [
+        {"format_id": "1", "ext": "mp4", "vcodec": "avc1", "acodec": "mp4a", "tbr": 900},
+        {"format_id": "2", "ext": "mp4", "vcodec": "avc1", "acodec": "mp4a", "tbr": 1800},
+        {"format_id": "3", "ext": "mp4", "vcodec": "avc1", "acodec": "mp4a", "tbr": 400},
+    ]
+    options = engine._options(formats)
+    assert [(o["id"], o["label"]) for o in options] == [("f2", "tier1"), ("f1", "tier2"), ("f3", "tier3")]
+
+
+def test_size_is_read_from_text_when_the_site_gives_no_numbers():
+    assert engine._quality({"format_id": "hls-720p"}) == 720
+    assert engine._quality({"resolution": "1280x720"}) == 720
+    assert engine._quality({"format_note": "480p"}) == 480
+    assert engine._quality({"format_id": "1"}) == 0
+    assert engine._quality({"format_id": "3000k"}) == 0

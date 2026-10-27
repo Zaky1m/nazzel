@@ -30,8 +30,6 @@ Nazzel has three layers that run inside the app:
   stream still answers HTTP 403, other YouTube clients are tried
 - TikTok, Dailymotion and others check the TLS fingerprint of the
   connection. curl_cffi presents a real browser fingerprint
-- Spotify streams are protected. Nazzel reads the track names from
-  Spotify's public embed page and downloads the audio from YouTube
 
 ## Staying up to date
 
@@ -49,6 +47,6 @@ one falls back to the copy inside the APK.
 
 ## When something fails
 
-Every download writes its full log: yt-dlp's verbose output, each step the
-app took and any exception. The last 100 are kept. Settings can save or share
-the log, which shows the exact reason a site refused a download.
+The app keeps no log. A failed preview shows a short note from the engine under
+the message, with links removed, and a failed download keeps the same kind of
+note on its row until the item is deleted.

@@ -16,9 +16,9 @@ object PyBridge {
     @Synchronized
     private fun engine(ctx: Context): com.chaquo.python.PyObject {
         if (!Python.isStarted()) Python.start(AndroidPlatform(ctx.applicationContext))
-        val module = loader(ctx).callAttr("engine", dataDir(ctx), appBuild(ctx))
+        val module = loader(ctx).callAttr("engine", dataDir(ctx), appBuild(ctx), BuildConfig.STORE)
         if (!configured) {
-            module.callAttr("configure", dataDir(ctx), ctx.applicationInfo.nativeLibraryDir + "/libqjs.so")
+            module.callAttr("configure", dataDir(ctx), ctx.applicationInfo.nativeLibraryDir + "/libqjs.so", BuildConfig.STORE)
             configured = true
         }
         return module
@@ -38,13 +38,13 @@ object PyBridge {
     fun engineNote(ctx: Context): String =
         runCatching { engine(ctx); loader(ctx).callAttr("note").toString() }.getOrDefault("unavailable")
 
-    fun info(ctx: Context, url: String, log: (String) -> Unit = {}): JSONObject = repairing(ctx, log) {
+    fun info(ctx: Context, url: String): JSONObject = repairing(ctx) {
         JSONObject(engine(ctx).callAttr("info", url).toString())
     }
 
     fun download(
-        ctx: Context, url: String, optionId: String, outDir: String, cb: ProgressCallback, log: (String) -> Unit = {},
-    ): JSONObject = repairing(ctx, log) {
+        ctx: Context, url: String, optionId: String, outDir: String, cb: ProgressCallback,
+    ): JSONObject = repairing(ctx) {
         JSONObject(engine(ctx).callAttr("download", url, optionId, outDir, cb).toString())
     }
 
@@ -54,22 +54,17 @@ object PyBridge {
         runCatching { JSONObject(engine(ctx).callAttr("version").toString()).optString("version", "?") }.getOrDefault("unavailable")
 
     // A site changing its pages is the usual reason extraction breaks; a newer yt-dlp normally fixes it.
-    private fun repairing(ctx: Context, log: (String) -> Unit, call: () -> JSONObject): JSONObject {
+    private fun repairing(ctx: Context, call: () -> JSONObject): JSONObject {
         val first = call()
-        if (first.optBoolean("ok") || first.optString("code") != "extractor") return first
-        log("extraction failed, trying an engine update: ${first.optString("message")}")
-        val updated = runCatching { update(ctx) }.getOrElse {
-            log("engine update crashed: $it")
-            return first
-        }
-        log("engine update result: $updated")
+        if (BuildConfig.STORE || first.optBoolean("ok") || first.optString("code") != "extractor") return first
+        val updated = runCatching { update(ctx) }.getOrElse { return first }
         if (!updated.optBoolean("ok") || !updated.optBoolean("updated")) return first
         stamp(ctx)
-        log("retrying with the new engine")
         return call()
     }
 
     fun maybeUpdate(ctx: Context) {
+        if (BuildConfig.STORE) return
         val prefs = ctx.getSharedPreferences("engine", Context.MODE_PRIVATE)
         if (System.currentTimeMillis() - prefs.getLong("last_check", 0L) < DAY_MS) return
         val res = runCatching { update(ctx) }.getOrNull() ?: return

@@ -20,16 +20,15 @@ The interface is in Arabic.
 - Opens from the share menu with a quality sheet, so you stay in the app you were using. A quick mode skips the sheet and saves the best quality
 - Fills in a link you copied as soon as you open the app
 - Downloads playlists, albums and posts with several videos; you pick the items and follow each one
-- Saves Spotify tracks, albums and playlists as audio by finding them on YouTube
-- Keeps downloading in the background with a progress notification, and saves to the gallery under `Movies/Nazzel` and `Music/Nazzel`
+- Keeps downloading in the background with a progress notification, and saves to `Download/Nazzel` or a folder you choose
 - Updates its downloader on its own and tells you in Settings when a new app version exists
-- Keeps a log of the last 100 downloads that you can save or share when something fails
+- Keeps nothing about you: no account, no analytics, no log files. Details in [docs/PRIVACY.md](docs/PRIVACY.md)
 
 [Read how it works](docs/how-it-works.md)
 
 ## Supported sites
 
-Facebook, YouTube, TikTok, Instagram (public posts), X, Dailymotion, SoundCloud, Reddit, Pinterest, Snapchat Spotlight, Twitch, Vimeo, Bluesky, LinkedIn, Tumblr, VK, Bilibili, Likee, Rumble, Kick and Spotify. Other sites supported by yt-dlp usually work as well.
+Facebook, YouTube, TikTok, Instagram (public posts), X, Dailymotion, SoundCloud, Reddit, Pinterest, Snapchat Spotlight, Twitch, Vimeo, Bluesky, LinkedIn, Tumblr, VK, Bilibili, Likee, Rumble, and Kick. Links from other sites are refused.
 
 Private posts and posts that need an account are not supported.
 
@@ -48,7 +47,7 @@ flutter build apk --release --target-platform android-arm64
 
 ## Contributing
 
-Bug reports with the download log attached are the most useful; the issue form explains how to get it. For code changes read [CONTRIBUTING.md](CONTRIBUTING.md) and [docs/SPEC.md](docs/SPEC.md).
+A bug report is most useful with the link, the message the app showed and your Android version. For code changes read [CONTRIBUTING.md](CONTRIBUTING.md) and [docs/SPEC.md](docs/SPEC.md).
 
 ## License
 

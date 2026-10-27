@@ -6,6 +6,7 @@ import '../core/strings.dart';
 import '../core/theme.dart';
 import '../engine/engine_api.dart';
 import '../engine/models.dart';
+import 'widgets/channel_button.dart';
 import 'widgets/common.dart';
 
 class DownloadsPage extends StatefulWidget {
@@ -92,7 +93,14 @@ class _DownloadsPageState extends State<DownloadsPage> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => Stack(
+    children: [
+      _page(context),
+      Positioned(right: 16, bottom: 16, child: const ChannelButton()),
+    ],
+  );
+
+  Widget _page(BuildContext context) {
     final p = context.nz;
     final items = _visible;
     return SafeArea(
@@ -118,7 +126,7 @@ class _DownloadsPageState extends State<DownloadsPage> {
             child: items.isEmpty
                 ? _empty(p)
                 : ListView(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 84),
                     children: [
                       for (final entry in _grouped(items)) ...[
                         if (entry.batchId == null) _tile(p, entry.items.first) else _batch(p, entry),

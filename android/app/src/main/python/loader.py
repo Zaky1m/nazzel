@@ -56,13 +56,13 @@ def _patched(folder, build):
     return meta, "ok"
 
 
-def engine(data_dir, build):
+def engine(data_dir, build, store=False):
     global _module, _note
     if _module is not None:
         return _module
     import engine as bundled
     folder = os.path.join(data_dir, "engine")
-    meta, why = _patched(folder, int(build))
+    meta, why = (None, "store build") if store else _patched(folder, int(build))
     if meta and _vt(meta["version"]) > _vt(bundled.ENGINE_VERSION):
         try:
             spec = importlib.util.spec_from_file_location("engine_patch", os.path.join(folder, "engine.py"))

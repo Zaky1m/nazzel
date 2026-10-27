@@ -16,13 +16,6 @@ body:
       description: The message shown in the app and what you expected instead
     validations:
       required: true
-  - type: textarea
-    id: log
-    attributes:
-      label: Download log
-      description: Settings → Download log → Share. Attach the file here; it lists what the downloader did for your last downloads
-    validations:
-      required: false
   - type: input
     id: device
     attributes:

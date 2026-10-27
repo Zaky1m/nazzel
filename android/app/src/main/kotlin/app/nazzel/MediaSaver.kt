@@ -10,7 +10,7 @@ import android.provider.MediaStore
 import java.io.File
 
 object MediaSaver {
-    const val DEFAULT_LABEL = "Movies/Nazzel"
+    const val DEFAULT_LABEL = "Download/Nazzel"
     private const val TREE_KEY = "save_tree"
 
     private fun prefs(ctx: Context) = ctx.getSharedPreferences("app", Context.MODE_PRIVATE)
@@ -66,14 +66,13 @@ object MediaSaver {
     }
 
     private fun saveToMediaStore(ctx: Context, file: File, displayName: String, mime: String): Uri {
-        val audio = mime.startsWith("audio/")
         val resolver = ctx.contentResolver
-        val collection = if (audio) MediaStore.Audio.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
-        else MediaStore.Video.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+        // Only the Downloads collection accepts a folder under Download for both video and audio.
+        val collection = MediaStore.Downloads.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
         val values = ContentValues().apply {
             put(MediaStore.MediaColumns.DISPLAY_NAME, displayName)
             put(MediaStore.MediaColumns.MIME_TYPE, mime)
-            put(MediaStore.MediaColumns.RELATIVE_PATH, if (audio) "Music/Nazzel" else "Movies/Nazzel")
+            put(MediaStore.MediaColumns.RELATIVE_PATH, "Download/Nazzel")
             put(MediaStore.MediaColumns.IS_PENDING, 1)
         }
         val uri = resolver.insert(collection, values) ?: error("MediaStore insert failed")
@@ -87,16 +86,18 @@ object MediaSaver {
         return uri
     }
 
-    fun saveText(ctx: Context, text: String, displayName: String): Uri {
-        val resolver = ctx.contentResolver
-        val values = ContentValues().apply {
-            put(MediaStore.MediaColumns.DISPLAY_NAME, displayName)
-            put(MediaStore.MediaColumns.MIME_TYPE, "text/plain")
-            put(MediaStore.MediaColumns.RELATIVE_PATH, "Download/Nazzel")
+    /** Removes the diagnostics files that versions before 1.3.0 wrote to Download/Nazzel. */
+    fun purgeOldLogs(ctx: Context) {
+        val marker = prefs(ctx)
+        if (marker.getBoolean("old_logs_purged", false)) return
+        runCatching {
+            ctx.contentResolver.delete(
+                MediaStore.Downloads.EXTERNAL_CONTENT_URI,
+                "${MediaStore.MediaColumns.DISPLAY_NAME} LIKE ? AND ${MediaStore.MediaColumns.RELATIVE_PATH} LIKE ?",
+                arrayOf("nazzel-log-%.txt", "Download/Nazzel%")
+            )
         }
-        val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values) ?: error("MediaStore insert failed")
-        resolver.openOutputStream(uri)!!.use { it.write(text.toByteArray(Charsets.UTF_8)) }
-        return uri
+        marker.edit().putBoolean("old_logs_purged", true).apply()
     }
 
     fun delete(ctx: Context, uri: String): Boolean {

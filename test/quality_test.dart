@@ -26,6 +26,12 @@ void main() {
     test('falls back to audio when there is no video', () => expect(pickQuality([audio], '720').id, 'audio'));
   });
 
+  test('qualityLabel names ranked options without a size', () {
+    expect(qualityLabel(const QualityOption(id: 'f2', kind: 'video', quality: 0, label: 'tier1')), 'الأعلى');
+    expect(qualityLabel(const QualityOption(id: 'f1', kind: 'video', quality: 0, label: 'tier2')), 'متوسطة');
+    expect(qualityLabel(const QualityOption(id: 'f3', kind: 'video', quality: 0, label: 'tier3')), 'أقل');
+  });
+
   test('qualityLabel names options for people', () {
     expect(qualityLabel(audio), 'صوت فقط');
     expect(qualityLabel(const QualityOption(id: 'best', kind: 'video', quality: 0, label: 'best')), 'الأعلى');

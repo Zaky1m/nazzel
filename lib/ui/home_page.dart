@@ -10,6 +10,7 @@ import '../engine/engine_api.dart';
 import '../engine/models.dart';
 import 'playlist_picker.dart';
 import 'quality.dart';
+import 'widgets/channel_button.dart';
 import 'widgets/common.dart';
 import 'widgets/glyph.dart';
 
@@ -32,7 +33,9 @@ class _HomePageState extends State<HomePage> {
   Set<int> _picked = {};
   bool _loading = false;
   String? _error;
+  String? _errorDetail;
   int _token = 0;
+  String? _lastUrl;
 
   @override
   void initState() {
@@ -50,7 +53,7 @@ class _HomePageState extends State<HomePage> {
 
   // A fresh link on the clipboard fills the field, unless the user is already busy with one.
   void _onClipboard(String url) {
-    if (_loading || _info != null || _controller.text.isNotEmpty) return;
+    if (_loading || _info != null || _controller.text.isNotEmpty || url == _lastUrl) return;
     _controller.text = url;
     _load(url);
   }
@@ -69,6 +72,7 @@ class _HomePageState extends State<HomePage> {
       _info = null;
       _selected = null;
       _error = null;
+      _errorDetail = null;
       _loading = false;
     });
   }
@@ -88,9 +92,11 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _load(String url) async {
     final token = ++_token;
+    _lastUrl = url;
     setState(() {
       _loading = true;
       _error = null;
+      _errorDetail = null;
       _info = null;
       _selected = null;
     });
@@ -108,6 +114,8 @@ class _HomePageState extends State<HomePage> {
       if (!mounted || token != _token) return;
       setState(() {
         _error = S.error(e.code);
+        // Only the failures that are not explained by the message above get the engine's own words.
+        _errorDetail = const ['unknown', 'extractor'].contains(e.code) ? _scrub(e.message) : null;
         _loading = false;
       });
     } catch (_) {
@@ -117,6 +125,12 @@ class _HomePageState extends State<HomePage> {
         _loading = false;
       });
     }
+  }
+
+  String? _scrub(String message) {
+    final text = message.replaceAll(RegExp(r'https?://\S+'), '').replaceAll(RegExp(r'\s+'), ' ').trim();
+    if (text.isEmpty) return null;
+    return text.length > 140 ? '${text.substring(0, 140)}...' : text;
   }
 
   Future<void> _start() async {
@@ -138,7 +152,14 @@ class _HomePageState extends State<HomePage> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => Stack(
+    children: [
+      _page(context),
+      Positioned(right: 16, bottom: _info?.isPlaylist == true ? 84 : 16, child: const ChannelButton()),
+    ],
+  );
+
+  Widget _page(BuildContext context) {
     final p = context.nz;
     return SafeArea(
       child: Column(
@@ -147,7 +168,7 @@ class _HomePageState extends State<HomePage> {
           const PageHeader(title: S.appName, leading: BrandMark()),
           Expanded(
             child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 84),
               children: [
                 _field(p),
                 const SizedBox(height: 14),
@@ -223,7 +244,21 @@ class _HomePageState extends State<HomePage> {
         Icon(Icons.warning_amber_rounded, color: p.bad, size: 20),
         const SizedBox(width: 10),
         Expanded(
-          child: Text(_error!, style: TextStyle(color: p.bad)),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(_error!, style: TextStyle(color: p.bad)),
+              if (_errorDetail != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text(
+                    _errorDetail!,
+                    textDirection: TextDirection.ltr,
+                    style: TextStyle(color: p.mute, fontSize: 11, height: 1.3),
+                  ),
+                ),
+            ],
+          ),
         ),
       ],
     ),

@@ -110,6 +110,7 @@ class DownloadItem {
 }
 
 class EngineFailure implements Exception {
-  const EngineFailure(this.code);
+  const EngineFailure(this.code, [this.message = '']);
   final String code;
+  final String message;
 }

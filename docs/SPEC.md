@@ -44,13 +44,6 @@ is no server, account or tracking.
   the list title with a progress count and a "Cancel all" button
 - Audio-only sites (SoundCloud and similar) offer only audio
 
-## Spotify
-
-Spotify streams are protected, so Nazzel never downloads from Spotify. For a
-track it reads the title and artists from Spotify's public embed page and
-downloads the audio of the first YouTube result for "artist title". Albums and
-playlists become a list of such tracks. No Spotify account or key is used.
-
 ## Downloading
 
 - One download runs at a time in a foreground service with a progress
@@ -58,8 +51,9 @@ playlists become a list of such tracks. No Spotify account or key is used.
 - Separate video and audio streams are downloaded one after the other and
   combined into MP4 with Android's `MediaMuxer`, without re-encoding.
   HLS downloads, which arrive as MPEG-TS, are remuxed into MP4 the same way
-- Files are saved through MediaStore to `Movies/Nazzel` (video) or
-  `Music/Nazzel` (audio). No storage permission is needed
+- Files are saved through MediaStore to `Download/Nazzel`, video and audio
+  alike, unless the user picks another folder in Settings. No storage
+  permission is needed
 - YouTube: the bundled QuickJS-NG runs yt-dlp's challenge solver. When a
   stream answers HTTP 403, other YouTube clients are tried in turn
 - Sites that check the TLS fingerprint get a browser fingerprint through
@@ -71,15 +65,15 @@ playlists become a list of such tracks. No Spotify account or key is used.
 
 Failures are shown in plain words (private or login required, missing,
 unsupported link, no connection, site changed, merge failed, could not save,
-interrupted). A failed download keeps its technical details, which can be
-copied from the list.
+interrupted). A failed download keeps a short technical note with links and
+file paths removed, which can be copied from the list and disappears with the
+item. A preview that fails shows the same kind of note under the message.
 
-## Download log
+## No logs
 
-The app keeps the full output of the last 100 downloads (and of failed
-previews): yt-dlp's verbose output, each step the app took, and any exception
-with its stack trace. Older entries are deleted automatically. Settings can
-save the log as a text file in `Download/Nazzel`, share it, or clear it.
+The app writes no log files and keeps no engine output. Versions before 1.3.0
+saved a diagnostics file in `Download/Nazzel`; 1.3.0 deletes those files and
+the database tables behind them on first start.
 
 ## State
 
@@ -87,7 +81,6 @@ save the log as a text file in `Download/Nazzel`, share it, or clear it.
 |---|---|---|
 | Temporary | Queued, failed or cancelled downloads and their partial files | 24 hours |
 | Permanent | Finished downloads and the saved files | Until the user deletes them |
-| Permanent | Download log | Last 100 runs |
 
 Download state lives in SQLite owned by the native layer, because the service
 runs while the user interface is closed. A download that was running when the
@@ -106,11 +99,15 @@ process died is marked as failed and can be retried.
   newer build is reported in Settings, next to the version number. The app does
   not download or install it; the install permission is not requested
 
+- Store build. When built with `NAZZEL_STORE=1` none of the above runs: no
+  downloaded code, no yt-dlp update, no app update check, and YouTube links
+  are refused. See [PLAY.md](PLAY.md)
+
 ## Settings
 
 Default quality, ask for quality when sharing, save location (any folder, chosen with the system picker),
 temporary file lifetime (read only), statistics (downloads so far, files kept
-and their size), the update check, and the download log.
+and their size), and a short note about privacy and rights.
 
 ## Interface
 

@@ -10,7 +10,7 @@ import org.json.JSONObject
 data class Row(val id: String, val url: String, val title: String, val optionId: String)
 
 // Single writer for download state. The service keeps running with the UI closed, so Dart only reads.
-class Store private constructor(ctx: Context) : SQLiteOpenHelper(ctx, "downloads.db", null, 4) {
+class Store private constructor(ctx: Context) : SQLiteOpenHelper(ctx, "downloads.db", null, 5) {
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL(
             """CREATE TABLE downloads(
@@ -20,25 +20,19 @@ class Store private constructor(ctx: Context) : SQLiteOpenHelper(ctx, "downloads
                 created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL)"""
         )
         db.execSQL("CREATE INDEX downloads_status ON downloads(status, created_at)")
-        createLogTables(db)
-    }
-
-    private fun createLogTables(db: SQLiteDatabase) {
-        db.execSQL(
-            """CREATE TABLE log_runs(id INTEGER PRIMARY KEY AUTOINCREMENT, download_id TEXT NOT NULL, kind TEXT NOT NULL,
-                started_at INTEGER NOT NULL, url TEXT, option_id TEXT, status TEXT)"""
-        )
-        db.execSQL("CREATE TABLE log_lines(run_id INTEGER NOT NULL, ts INTEGER NOT NULL, line TEXT NOT NULL)")
-        db.execSQL("CREATE INDEX log_lines_run ON log_lines(run_id)")
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
         if (oldVersion < 2) db.execSQL("ALTER TABLE downloads ADD COLUMN detail TEXT")
-        if (oldVersion < 3) createLogTables(db)
         if (oldVersion < 4) {
             db.execSQL("ALTER TABLE downloads ADD COLUMN batch_id TEXT")
             db.execSQL("ALTER TABLE downloads ADD COLUMN batch_title TEXT")
             db.execSQL("ALTER TABLE downloads ADD COLUMN size INTEGER")
+        }
+        // Diagnostics logs were removed in 1.3.0; nothing keeps engine output or links any more.
+        if (oldVersion < 5) {
+            db.execSQL("DROP TABLE IF EXISTS log_lines")
+            db.execSQL("DROP TABLE IF EXISTS log_runs")
         }
     }
 
@@ -192,67 +186,7 @@ class Store private constructor(ctx: Context) : SQLiteOpenHelper(ctx, "downloads
         return out
     }
 
-    // Diagnostics for the last LOG_KEEP runs; older runs are deleted whenever a new one starts.
-    fun logStart(downloadId: String, kind: String, url: String, optionId: String): Long {
-        val db = writableDatabase
-        val id = db.insertOrThrow("log_runs", null, ContentValues().apply {
-            put("download_id", downloadId); put("kind", kind); put("started_at", System.currentTimeMillis())
-            put("url", url); put("option_id", optionId); put("status", "running")
-        })
-        db.execSQL("DELETE FROM log_runs WHERE id NOT IN (SELECT id FROM log_runs ORDER BY id DESC LIMIT $LOG_KEEP)")
-        db.execSQL("DELETE FROM log_lines WHERE run_id NOT IN (SELECT id FROM log_runs)")
-        return id
-    }
-
-    fun logLines(runId: Long, lines: List<String>) {
-        if (lines.isEmpty()) return
-        val db = writableDatabase
-        db.beginTransaction()
-        try {
-            val now = System.currentTimeMillis()
-            lines.forEach { line ->
-                db.insert("log_lines", null, ContentValues().apply {
-                    put("run_id", runId); put("ts", now); put("line", line.take(2000))
-                })
-            }
-            db.setTransactionSuccessful()
-        } finally {
-            db.endTransaction()
-        }
-    }
-
-    fun logEnd(runId: Long, status: String) {
-        writableDatabase.update("log_runs", ContentValues().apply { put("status", status) }, "id=?", arrayOf(runId.toString()))
-    }
-
-    fun logClear() {
-        writableDatabase.execSQL("DELETE FROM log_lines")
-        writableDatabase.execSQL("DELETE FROM log_runs")
-    }
-
-    fun logCount(): Int = android.database.DatabaseUtils.queryNumEntries(readableDatabase, "log_runs").toInt()
-
-    fun logRender(header: String): String {
-        val fmt = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.US)
-        val out = StringBuilder(header).append("\n\n")
-        val db = readableDatabase
-        db.rawQuery("SELECT id, download_id, kind, started_at, url, option_id, status FROM log_runs ORDER BY id DESC", null).use { runs ->
-            while (runs.moveToNext()) {
-                val id = runs.getLong(0)
-                out.append("=== #").append(id).append(' ').append(runs.getString(2)).append(" | ")
-                    .append(fmt.format(java.util.Date(runs.getLong(3)))).append(" | status=").append(runs.getString(6)).append('\n')
-                out.append("url: ").append(runs.getString(4)).append("  option: ").append(runs.getString(5)).append('\n')
-                db.rawQuery("SELECT line FROM log_lines WHERE run_id=? ORDER BY rowid", arrayOf(id.toString())).use { lines ->
-                    while (lines.moveToNext()) out.append(lines.getString(0)).append('\n')
-                }
-                out.append('\n')
-            }
-        }
-        return out.toString()
-    }
-
     companion object {
-        private const val LOG_KEEP = 100
         @Volatile private var instance: Store? = null
         fun get(ctx: Context): Store = instance ?: synchronized(this) {
             instance ?: Store(ctx.applicationContext).also { instance = it }

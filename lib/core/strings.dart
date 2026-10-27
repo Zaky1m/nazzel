@@ -27,13 +27,17 @@ class S {
   static const deleteBody = 'الفيديو هيتشال من المعرض كمان.';
   static const defaultQuality = 'الجودة الافتراضية';
   static const bestQuality = 'الأعلى';
+  static String tier(int rank) => switch (rank) {
+    1 => 'الأعلى',
+    2 => 'متوسطة',
+    _ => 'أقل',
+  };
   static const saveLocation = 'مكان الحفظ';
   static const saveLocationHint = 'اضغط لاختيار مجلد تاني';
   static const resetLocation = 'رجّع الافتراضي';
   static const locationChanged = 'مكان الحفظ اتغيّر';
   static const sectionDownloads = 'التحميل';
   static const sectionStats = 'الإحصائيات';
-  static const sectionSupport = 'الدعم';
   static const tempCleanup = 'مسح المؤقت بعد';
   static const tempCleanupValue = '24 ساعة';
   static const askQuality = 'اسأل عن الجودة عند المشاركة';
@@ -42,14 +46,6 @@ class S {
   static const close = 'إغلاق';
   static const copyDetails = 'نسخ التفاصيل';
   static const copied = 'اتنسخت التفاصيل';
-  static const logTitle = 'سجل التحميلات';
-  static const logHint = 'بيحفظ مخرجات آخر 100 تحميل تلقائيًا ويمسح الأقدم. ابعته للدعم لو تحميل فشل.';
-  static const logSave = 'حفظ الملف';
-  static const logShare = 'مشاركة';
-  static const logClear = 'مسح السجل';
-  static const logCleared = 'اتمسح السجل';
-  static const logEmpty = 'مفيش حاجة في السجل';
-  static const logFailed = 'ماقدرتش أجهّز الملف';
   static const clear = 'مسح';
   static const selectAll = 'تحديد الكل';
   static const selectNone = 'إلغاء التحديد';
@@ -66,21 +62,30 @@ class S {
   static const statsTitle = 'الإحصائيات';
   static const statsLifetime = 'حمّلت لحد دلوقتي';
   static const statsSaved = 'محفوظ في المعرض';
-  static String versionLabel(String v) => 'الإصدار $v';
+  static const checkUpdates = 'فحص التحديثات';
+  static const upToDate = 'عندك آخر نسخة';
+  static const checkFailed = 'ماقدرتش أفحص التحديثات';
+  static const channelJoin = 'انضم لقناتنا لمزيد من التطبيقات';
+  static const channelUrl = 'https://t.me/flfl0fl';
   static String newVersion(String v) => 'نسخة جديدة $v متاحة';
+  static String versionLabel(String v) => 'الإصدار $v';
+  static const sectionAbout = 'عن التطبيق';
+  static const aboutPrivacy =
+      'نزّل ما بيجمع أي بيانات عنك ولا بيبعتها لأي جهة. الروابط والتحميلات بتفضل على موبايلك بس.';
+  static const aboutRights = 'حمّل بس المحتوى اللي ليك حق تحميله، والمسؤولية على المستخدم.';
   static const noLinkFound = 'مفيش رابط في النص ده';
   static const openFailed = 'ماقدرتش أفتح الملف';
 
   static String error(String? code) => switch (code) {
     'private' => 'الفيديو خاص أو محتاج تسجيل دخول',
     'missing' => 'الفيديو مش موجود أو اتحذف',
-    'unsupported' => 'الرابط ده مش مدعوم',
+    'unsupported' => 'الرابط ده من موقع نزّل مش بيدعمه',
     'network' => 'مفيش اتصال بالنت، جرّب تاني',
     'extractor' => 'الموقع غيّر طريقته، جرّب بعد شوية',
     'merge' => 'فشل دمج الصوت مع الفيديو',
     'save' => 'ماقدرتش أحفظ الفيديو في المعرض',
     'timeout' => 'التحميل وقف لأن الوقت خلص، جرّب تاني',
     'interrupted' => 'التحميل اتقطع',
-    _ => 'حصل خطأ غير متوقع',
+    _ => 'ماقدرتش أجهّز الفيديو من الرابط ده',
   };
 }
